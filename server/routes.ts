@@ -29,8 +29,8 @@ export async function registerRoutes(
 
   app.post(api.rooms.create.path, async (req, res) => {
     try {
-      const { playerName, totalRounds, categories } = api.rooms.create.input.parse(req.body);
-      const room = await storage.createRoom(playerName, totalRounds, categories);
+      const { playerName, totalRounds, categories, timerDuration } = api.rooms.create.input.parse(req.body);
+      const room = await storage.createRoom(playerName, totalRounds, categories, timerDuration);
       const player = await storage.addPlayer(room.id, playerName, true);
       res.status(201).json({ code: room.code, playerId: player.id, token: String(player.id) });
     } catch (err) {
@@ -137,19 +137,51 @@ export async function registerRoutes(
     
     console.log(`[Game] Room ${room.code}: ${submittedPlayerIds.size}/${playersInRoom.length} players submitted`);
     
+    // Handle first submission timer
+    if (submittedPlayerIds.size === 1 && !currentRound.firstSubmissionAt && room.timerDuration !== null) {
+      await storage.markFirstSubmission(currentRound.id);
+      console.log(`[Game] Room ${room.code}: First submission! Starting ${room.timerDuration}s timer.`);
+    }
+
     if (submittedPlayerIds.size >= playersInRoom.length) {
       console.log(`[Game] Room ${room.code}: All players submitted. Finishing round...`);
       // All players submitted! Finish round automatically
-      await validateRound(currentRound.id, currentRound.letter);
-      await storage.completeRound(currentRound.id);
-      
-      if (room.roundNumber >= room.totalRounds) {
-          await storage.updateRoomStatus(room.id, 'finished');
-      }
+      await finishRoundLogic(room, currentRound);
     }
     
     res.json({ success: true });
   });
+
+  async function finishRoundLogic(room: any, round: any) {
+    if (round.status === 'completed') return;
+    await validateRound(round.id, round.letter);
+    await storage.completeRound(round.id);
+    
+    if (room.roundNumber >= room.totalRounds) {
+        await storage.updateRoomStatus(room.id, 'finished');
+    }
+  }
+
+  // Polling for timer expiration
+  setInterval(async () => {
+    try {
+      const activeRounds = await db.select().from(rounds).where(eq(rounds.status, 'active'));
+      for (const round of activeRounds) {
+        if (round.firstSubmissionAt) {
+          const room = await storage.getRoomById(round.roomId);
+          if (room && room.timerDuration !== null) {
+            const elapsed = (Date.now() - new Date(round.firstSubmissionAt).getTime()) / 1000;
+            if (elapsed >= room.timerDuration) {
+              console.log(`[Game] Room ${room.code}: Timer expired. Finishing round...`);
+              await finishRoundLogic(room, round);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore errors in background timer
+    }
+  }, 2000);
 
   app.post(api.rooms.finishRound.path, async (req, res) => {
     const room = await storage.getRoom(req.params.code);
@@ -193,6 +225,17 @@ export async function registerRoutes(
 
     const { categories } = api.rooms.updateCategories.input.parse(req.body);
     await storage.updateRoomCategories(room.id, categories);
+    res.json({ success: true });
+  });
+
+  app.post(api.rooms.updateSettings.path, async (req, res) => {
+    const room = await storage.getRoom(req.params.code);
+    if (!room) return res.status(404).json({ message: "Room not found" });
+    
+    if (room.status !== 'waiting') return res.status(400).json({ message: "Cannot update settings after game started" });
+
+    const settings = api.rooms.updateSettings.input.parse(req.body);
+    await storage.updateRoomSettings(room.id, settings);
     res.json({ success: true });
   });
 

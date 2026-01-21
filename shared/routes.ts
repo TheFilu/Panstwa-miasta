@@ -25,6 +25,7 @@ export const api = {
       input: z.object({
         playerName: z.string().min(1),
         totalRounds: z.number().min(1).max(20).optional(),
+        timerDuration: z.number().min(0).max(60).nullable().optional(),
         categories: z.array(z.string()).optional(),
       }),
       responses: {
@@ -108,6 +109,18 @@ export const api = {
       path: '/api/rooms/:code/categories',
       input: z.object({
         categories: z.array(z.string()),
+      }),
+      responses: {
+        200: z.object({ success: z.boolean() }),
+        404: errorSchemas.notFound,
+      },
+    },
+    updateSettings: {
+      method: 'POST' as const,
+      path: '/api/rooms/:code/settings',
+      input: z.object({
+        totalRounds: z.number().min(1).max(20).optional(),
+        timerDuration: z.number().min(0).max(60).nullable().optional(),
       }),
       responses: {
         200: z.object({ success: z.boolean() }),

@@ -10,12 +10,13 @@ import { randomBytes } from "crypto";
 
 export interface IStorage {
   // Rooms
-  createRoom(name: string, totalRounds?: number, categories?: string[]): Promise<Room>;
+  createRoom(name: string, totalRounds?: number, categories?: string[], timerDuration?: number | null): Promise<Room>;
   getRoom(code: string): Promise<Room | undefined>;
   getRoomById(id: number): Promise<Room | undefined>;
   updateRoomStatus(id: number, status: string): Promise<Room>;
   updateRoomRound(id: number, roundNumber: number): Promise<Room>;
   updateRoomCategories(id: number, categories: string[]): Promise<Room>;
+  updateRoomSettings(id: number, settings: { totalRounds?: number, timerDuration?: number | null }): Promise<Room>;
   addUsedLetter(id: number, letter: string): Promise<Room>;
 
   // Players
@@ -28,6 +29,7 @@ export interface IStorage {
   createRound(roomId: number, letter: string): Promise<Round>;
   getRound(roomId: number, roundNumber: number): Promise<Round | undefined>;
   getCurrentRound(roomId: number): Promise<Round | undefined>;
+  markFirstSubmission(id: number): Promise<Round>;
   completeRound(id: number): Promise<Round>;
 
   // Answers
@@ -37,11 +39,12 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  async createRoom(playerName: string, totalRounds: number = 5, categories?: string[]): Promise<Room> {
+  async createRoom(playerName: string, totalRounds: number = 5, categories?: string[], timerDuration: number | null = 15): Promise<Room> {
     const code = randomBytes(2).toString('hex').toUpperCase(); // 4 chars
     const [room] = await db.insert(rooms).values({
       code,
       totalRounds,
+      timerDuration,
       status: 'waiting',
       categories: categories || ['panstwo', 'miasto', 'imie', 'zwierze', 'rzecz', 'roslina'],
       usedLetters: [],
@@ -71,6 +74,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateRoomCategories(id: number, categories: string[]): Promise<Room> {
     const [room] = await db.update(rooms).set({ categories }).where(eq(rooms.id, id)).returning();
+    return room;
+  }
+
+  async updateRoomSettings(id: number, settings: { totalRounds?: number, timerDuration?: number | null }): Promise<Room> {
+    const [room] = await db.update(rooms).set(settings).where(eq(rooms.id, id)).returning();
     return room;
   }
 
@@ -144,6 +152,11 @@ export class DatabaseStorage implements IStorage {
 
   async completeRound(id: number): Promise<Round> {
     const [round] = await db.update(rounds).set({ status: 'completed', endedAt: new Date() }).where(eq(rounds.id, id)).returning();
+    return round;
+  }
+
+  async markFirstSubmission(id: number): Promise<Round> {
+    const [round] = await db.update(rounds).set({ firstSubmissionAt: new Date() }).where(eq(rounds.id, id)).returning();
     return round;
   }
 

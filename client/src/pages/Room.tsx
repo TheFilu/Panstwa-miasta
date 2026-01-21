@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useRoute, useLocation } from "wouter";
-import { useRoom, getSession, clearSession, useStartGame, useSubmitAnswers, useUpdateCategories } from "@/hooks/use-game";
+import { useRoom, getSession, clearSession, useStartGame, useSubmitAnswers, useUpdateCategories, useUpdateSettings } from "@/hooks/use-game";
 import { Button } from "@/components/Button";
 import { GameCard } from "@/components/GameCard";
 import { Avatar } from "@/components/Avatar";
 import { Input } from "@/components/Input";
 import { CATEGORIES, type Answer } from "@shared/schema";
-import { Loader2, Trophy, Clock, Copy, ArrowRight, Check, X, Crown, Plus, Trash2 } from "lucide-react";
+import { Loader2, Trophy, Clock, Copy, ArrowRight, Check, X, Crown, Plus, Trash2, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
@@ -21,10 +21,27 @@ export default function Room() {
   const startGame = useStartGame();
   const submitAnswers = useSubmitAnswers();
   const updateCategories = useUpdateCategories();
+  const updateSettings = useUpdateSettings();
 
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [newCategory, setNewCategory] = useState("");
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+
+  // Timer logic
+  useEffect(() => {
+    if (currentRound?.firstSubmissionAt && room.timerDuration !== null && currentRound.status === "active") {
+      const endTime = new Date(currentRound.firstSubmissionAt).getTime() + room.timerDuration * 1000;
+      const interval = setInterval(() => {
+        const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+        setTimeLeft(remaining);
+        if (remaining <= 0) clearInterval(interval);
+      }, 500);
+      return () => clearInterval(interval);
+    } else {
+      setTimeLeft(null);
+    }
+  }, [currentRound?.firstSubmissionAt, room.timerDuration, currentRound?.status]);
 
   // Redirect if no session or room code mismatch
   useEffect(() => {
@@ -182,6 +199,47 @@ export default function Room() {
               </div>
             </GameCard>
 
+            <GameCard title="Game Settings" icon={<Settings className="w-5 h-5" />}>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground/80 ml-1 flex justify-between">
+                    <span>Rounds</span>
+                    <span className="text-primary font-bold">{room.totalRounds}</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="20"
+                    value={room.totalRounds}
+                    onChange={(e) => isHost && updateSettings.mutate({ code: room.code, settings: { totalRounds: parseInt(e.target.value) } })}
+                    disabled={!isHost}
+                    className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground/80 ml-1 flex justify-between">
+                    <span>Round Timer (after 1st finish)</span>
+                    <span className="text-primary font-bold">{room.timerDuration === null ? "OFF" : `${room.timerDuration}s`}</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="60"
+                    step="5"
+                    value={room.timerDuration === null ? 0 : room.timerDuration}
+                    onChange={(e) => {
+                      if (!isHost) return;
+                      const val = parseInt(e.target.value);
+                      updateSettings.mutate({ code: room.code, settings: { timerDuration: val === 0 ? null : val } });
+                    }}
+                    disabled={!isHost}
+                    className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50"
+                  />
+                </div>
+              </div>
+            </GameCard>
+
             <GameCard className="bg-primary/5 border-primary/20">
               <h3 className="text-xl font-bold mb-2">Game Rules</h3>
               <ul className="space-y-2 text-muted-foreground">
@@ -270,6 +328,11 @@ export default function Room() {
             </div>
           </div>
           <div className="text-right">
+             {timeLeft !== null && (
+               <div className="text-2xl font-black text-red-500 bg-red-50 px-4 py-2 rounded-xl mb-2 flex items-center gap-2 border-2 border-red-100">
+                 <Clock className="w-6 h-6 animate-pulse" /> {timeLeft}s
+               </div>
+             )}
              {hasSubmitted ? (
                <div className="flex items-center gap-2 text-green-600 font-bold bg-green-50 px-4 py-2 rounded-xl">
                  <Check className="w-5 h-5" /> Submitted

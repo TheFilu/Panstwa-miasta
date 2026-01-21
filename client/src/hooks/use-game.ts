@@ -171,3 +171,24 @@ export function useUpdateCategories() {
     },
   });
 }
+
+export function useUpdateSettings() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ code, settings }: { code: string, settings: { totalRounds?: number, timerDuration?: number | null } }) => {
+      const url = buildUrl(api.rooms.updateSettings.path, { code });
+      const res = await fetch(url, {
+        method: api.rooms.updateSettings.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+
+      if (!res.ok) throw new Error("Failed to update settings");
+      return api.rooms.updateSettings.responses[200].parse(await res.json());
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [api.rooms.get.path, variables.code] });
+    },
+  });
+}
