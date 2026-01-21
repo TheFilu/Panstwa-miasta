@@ -94,8 +94,8 @@ export default function Room() {
   const me = players.find(p => p.id === session?.playerId);
   const isHost = me?.isHost;
 
-  const [localRounds, setLocalRounds] = useState<number>(room.totalRounds);
-  const [localTimer, setLocalTimer] = useState<number | null>(room.timerDuration);
+  const [localRounds, setLocalRounds] = useState<number>(() => room.totalRounds);
+  const [localTimer, setLocalTimer] = useState<number | null>(() => room.timerDuration);
 
   // Sync local state when room data changes (but not while dragging)
   useEffect(() => {
