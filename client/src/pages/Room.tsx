@@ -94,6 +94,35 @@ export default function Room() {
   const me = players.find(p => p.id === session?.playerId);
   const isHost = me?.isHost;
 
+  const [localRounds, setLocalRounds] = useState<number>(room.totalRounds);
+  const [localTimer, setLocalTimer] = useState<number | null>(room.timerDuration);
+
+  // Sync local state when room data changes (but not while dragging)
+  useEffect(() => {
+    setLocalRounds(room.totalRounds);
+  }, [room.totalRounds]);
+
+  useEffect(() => {
+    setLocalTimer(room.timerDuration);
+  }, [room.timerDuration]);
+
+  const handleRoundsChange = (val: number) => {
+    setLocalRounds(val);
+    updateSettings.mutate({ 
+      code: room.code, 
+      settings: { totalRounds: val } 
+    });
+  };
+
+  const handleTimerChange = (val: number) => {
+    const newDuration = val === 0 ? null : val;
+    setLocalTimer(newDuration);
+    updateSettings.mutate({ 
+      code: room.code, 
+      settings: { timerDuration: newDuration } 
+    });
+  };
+
   const copyCode = () => {
     navigator.clipboard.writeText(room.code);
     toast({ title: "Copied!", description: "Room code copied to clipboard" });
@@ -210,14 +239,8 @@ export default function Room() {
                     type="range"
                     min="1"
                     max="20"
-                    value={room.totalRounds}
-                    onChange={(e) => {
-                      if (!isHost) return;
-                      updateSettings.mutate({ 
-                        code: room.code, 
-                        settings: { totalRounds: parseInt(e.target.value) } 
-                      });
-                    }}
+                    value={localRounds}
+                    onChange={(e) => isHost && handleRoundsChange(parseInt(e.target.value))}
                     disabled={!isHost}
                     className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50"
                   />
@@ -226,23 +249,15 @@ export default function Room() {
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground/80 ml-1 flex justify-between">
                     <span>Round Timer (after 1st finish)</span>
-                    <span className="text-primary font-bold">{room.timerDuration === null ? "OFF" : `${room.timerDuration}s`}</span>
+                    <span className="text-primary font-bold">{localTimer === null ? "OFF" : `${localTimer}s`}</span>
                   </label>
                   <input
                     type="range"
                     min="0"
                     max="60"
                     step="5"
-                    value={room.timerDuration === null ? 0 : room.timerDuration}
-                    onChange={(e) => {
-                      if (!isHost) return;
-                      const val = parseInt(e.target.value);
-                      const newDuration = val === 0 ? null : val;
-                      updateSettings.mutate({ 
-                        code: room.code, 
-                        settings: { timerDuration: newDuration } 
-                      });
-                    }}
+                    value={localTimer === null ? 0 : localTimer}
+                    onChange={(e) => isHost && handleTimerChange(parseInt(e.target.value))}
                     disabled={!isHost}
                     className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50"
                   />
