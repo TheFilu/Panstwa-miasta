@@ -12,6 +12,7 @@ export default function Landing() {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [rounds, setRounds] = useState(5);
+  const [categories, setCategories] = useState("państwo, miasto, imię, zwierzę, rzecz, roślina");
   
   const createRoom = useCreateRoom();
   const joinRoom = useJoinRoom();
@@ -21,7 +22,12 @@ export default function Landing() {
     e.preventDefault();
     if (!name.trim()) return;
     try {
-      await createRoom.mutateAsync({ playerName: name, totalRounds: rounds });
+      const categoryList = categories.split(",").map(c => c.trim()).filter(c => c.length > 0);
+      await createRoom.mutateAsync({ 
+        playerName: name, 
+        totalRounds: rounds,
+        categories: categoryList.length > 0 ? categoryList : undefined
+      });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
@@ -121,6 +127,12 @@ export default function Landing() {
                       className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
                     />
                   </div>
+                  <Input
+                    label="Categories (comma separated)"
+                    placeholder="e.g. panstwo, miasto, imie"
+                    value={categories}
+                    onChange={(e) => setCategories(e.target.value)}
+                  />
                   <div className="flex gap-3 pt-2">
                     <Button 
                       type="button" 
