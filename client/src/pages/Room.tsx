@@ -137,11 +137,12 @@ function RoomContent({
   }, [room.timerDuration]);
 
   useEffect(() => {
-    if (currentRound) {
+    // Resetujemy formularz tylko wtedy, gdy zaczyna się NOWA aktywna runda
+    if (currentRound?.status === "active") {
       setInputs({});
       setHasSubmitted(false);
     }
-  }, [currentRound?.id]);
+  }, [currentRound?.id, currentRound?.status]); // Dodaj status do zależności
 
   useEffect(() => {
     if (
@@ -430,19 +431,32 @@ function RoomContent({
                   onChange={(e) =>
                     setInputs((prev) => ({ ...prev, [catId]: e.target.value }))
                   }
-                  disabled={hasSubmitted}
+                  // Kluczowa zmiana: sprawdzamy też czy runda w ogóle jest jeszcze aktywna
+                  disabled={hasSubmitted || currentRound.status !== "active"}
                   autoComplete="off"
                 />
               </GameCard>
             ))}
           </div>
+
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t flex justify-center z-10">
             <Button
               size="lg"
               className="w-full max-w-md h-16 text-xl shadow-xl"
-              disabled={hasSubmitted || submitAnswers.isPending}
+              // Jeśli status rundy zmieni się na serwerze, przycisk powinien zniknąć/zmienić się
+              disabled={
+                hasSubmitted ||
+                submitAnswers.isPending ||
+                currentRound.status !== "active"
+              }
             >
-              {hasSubmitted ? "Waiting for others..." : "Submit Answers"}
+              {hasSubmitted ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="animate-spin" /> Waiting for others...
+                </div>
+              ) : (
+                "Submit Answers"
+              )}
             </Button>
           </div>
           <div className="h-24" />
