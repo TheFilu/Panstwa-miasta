@@ -122,21 +122,28 @@ export async function registerRoutes(
     const currentRound = await storage.getCurrentRound(room.id);
     if (!currentRound || currentRound.status !== 'active') return res.status(400).json({ message: "No active round" });
 
-    // Need playerId
-    // Let's assume passed in header "X-Player-ID" for now or body?
-    // Body schema doesn't have it.
-    // I'll assume header or just update schema?
-    // Updating schema is cleaner.
-    // But I can read header "Authorization" which holds the token (playerId).
     const playerId = Number(req.headers.authorization);
     if (!playerId) return res.status(401).json({ message: "Unauthorized" });
 
     const { answers } = api.rooms.submit.input.parse(req.body);
     await storage.submitAnswers(currentRound.id, playerId, answers);
 
-    // Mark player as ready/submitted?
-    // We can check if all players submitted to auto-finish?
-    // For now, let host finish manually or timer on frontend triggers finish
+    // Auto-finish logic: check if all players have submitted
+    const playersInRoom = await storage.getPlayers(room.id);
+    const roundAnswers = await storage.getAnswers(currentRound.id);
+    
+    // Group answers by player to count how many players submitted
+    const submittedPlayerIds = new Set(roundAnswers.map(a => a.playerId));
+    
+    if (submittedPlayerIds.size >= playersInRoom.length) {
+      // All players submitted! Finish round automatically
+      await validateRound(currentRound.id, currentRound.letter);
+      await storage.completeRound(currentRound.id);
+      
+      if (room.roundNumber >= room.totalRounds) {
+          await storage.updateRoomStatus(room.id, 'finished');
+      }
+    }
     
     res.json({ success: true });
   });
@@ -200,6 +207,12 @@ async function startNewRound(roomId: number) {
 }
 
 async function validateRound(roundId: number, letter: string) {
+  const round = await db.select().from(rounds).where(eq(rounds.id, roundId)).limit(1);
+  if (!round.length) return;
+  const roomId = round[0].roomId;
+  const room = await storage.getRoomById(roomId);
+  const categoriesToUse = room?.categories || ['panstwo', 'miasto', 'imie', 'zwierze', 'rzecz', 'roslina'];
+
   const answers = await storage.getAnswers(roundId);
   const answersByPlayer: Record<number, Record<string, string>> = {};
   
@@ -239,7 +252,7 @@ async function validateRound(roundId: number, letter: string) {
                     Letter is '${letter}'. 
                     Check if the word is valid for the category and starts with the letter. 
                     Allow minor typos. 
-                    Categories: panstwo (Country), miasto (City), imie (Name), zwierze (Animal), rzecz (Thing/Object), roslina (Plant).
+                    Categories in this game: ${categoriesToUse.join(', ')}.
                     Respond with JSON object where keys are 'category:word' (lowercase) and value is { isValid: boolean, reason: string }.`
                 },
                 {

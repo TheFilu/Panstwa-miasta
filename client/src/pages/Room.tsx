@@ -71,6 +71,7 @@ export default function Room() {
   }
 
   const { room, players, currentRound, myAnswers } = data;
+  const categories = room.categories || CATEGORIES.map(c => c.id);
   const me = players.find(p => p.id === session?.playerId);
   const isHost = me?.isHost;
 
@@ -235,26 +236,29 @@ export default function Room() {
 
         <form onSubmit={handleSubmit}>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {CATEGORIES.map((cat, idx) => (
-              <motion.div
-                key={cat.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-              >
-                <GameCard className="h-full">
-                  <Input
-                    label={cat.label}
-                    placeholder={`Starts with ${currentRound.letter}...`}
-                    value={inputs[cat.id] || ""}
-                    onChange={(e) => setInputs(prev => ({ ...prev, [cat.id]: e.target.value }))}
-                    disabled={hasSubmitted}
-                    className="text-lg font-medium"
-                    autoComplete="off"
-                  />
-                </GameCard>
-              </motion.div>
-            ))}
+            {categories.map((catId: string, idx: number) => {
+              const catLabel = CATEGORIES.find(c => c.id === catId)?.label || catId.charAt(0).toUpperCase() + catId.slice(1);
+              return (
+                <motion.div
+                  key={catId}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                >
+                  <GameCard className="h-full">
+                    <Input
+                      label={catLabel}
+                      placeholder={`Starts with ${currentRound.letter}...`}
+                      value={inputs[catId] || ""}
+                      onChange={(e) => setInputs(prev => ({ ...prev, [catId]: e.target.value }))}
+                      disabled={hasSubmitted}
+                      className="text-lg font-medium"
+                      autoComplete="off"
+                    />
+                  </GameCard>
+                </motion.div>
+              );
+            })}
           </div>
 
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-border flex justify-center z-10">
