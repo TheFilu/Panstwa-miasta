@@ -40,13 +40,11 @@ export async function registerRoutes(
       );
       const player = await storage.addPlayer(room.id, playerName, true);
       console.log(`[Lobby] Room created: ${room.code} by ${playerName}`);
-      res
-        .status(201)
-        .json({
-          code: room.code,
-          playerId: player.id,
-          token: String(player.id),
-        });
+      res.status(201).json({
+        code: room.code,
+        playerId: player.id,
+        token: String(player.id),
+      });
     } catch (err) {
       console.error("[Lobby] Create room error:", err);
       if (err instanceof z.ZodError) {
@@ -76,13 +74,11 @@ export async function registerRoutes(
       }
 
       const player = await storage.addPlayer(room.id, playerName, false);
-      res
-        .status(200)
-        .json({
-          code: room.code,
-          playerId: player.id,
-          token: String(player.id),
-        });
+      res.status(200).json({
+        code: room.code,
+        playerId: player.id,
+        token: String(player.id),
+      });
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
