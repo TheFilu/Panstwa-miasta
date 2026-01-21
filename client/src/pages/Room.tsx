@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useRoute, useLocation } from "wouter";
-import { useRoom, getSession, clearSession, useStartGame, useSubmitAnswers } from "@/hooks/use-game";
+import { useRoom, getSession, clearSession, useStartGame, useSubmitAnswers, useUpdateCategories } from "@/hooks/use-game";
 import { Button } from "@/components/Button";
 import { GameCard } from "@/components/GameCard";
 import { Avatar } from "@/components/Avatar";
 import { Input } from "@/components/Input";
 import { CATEGORIES, type Answer } from "@shared/schema";
-import { Loader2, Trophy, Clock, Copy, ArrowRight, Check, X, Crown } from "lucide-react";
+import { Loader2, Trophy, Clock, Copy, ArrowRight, Check, X, Crown, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
@@ -20,9 +20,11 @@ export default function Room() {
   
   const startGame = useStartGame();
   const submitAnswers = useSubmitAnswers();
+  const updateCategories = useUpdateCategories();
 
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
 
   // Redirect if no session or room code mismatch
   useEffect(() => {
@@ -84,6 +86,18 @@ export default function Room() {
     startGame.mutate(room.code);
   };
 
+  const handleAddCategory = () => {
+    if (!newCategory.trim()) return;
+    const updated = [...categories, newCategory.trim()];
+    updateCategories.mutate({ code: room.code, categories: updated });
+    setNewCategory("");
+  };
+
+  const handleRemoveCategory = (catToRemove: string) => {
+    const updated = categories.filter((c: string) => c !== catToRemove);
+    updateCategories.mutate({ code: room.code, categories: updated });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     submitAnswers.mutate({ code: room.code, answers: inputs });
@@ -134,6 +148,40 @@ export default function Room() {
           </GameCard>
 
           <div className="space-y-6">
+            <GameCard title="Categories" className="bg-primary/5 border-primary/20">
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((cat: string) => (
+                    <div key={cat} className="bg-white border rounded-lg px-3 py-1 flex items-center gap-2">
+                      <span className="font-medium">{CATEGORIES.find(c => c.id === cat)?.label || cat}</span>
+                      {isHost && (
+                        <button 
+                          onClick={() => handleRemoveCategory(cat)}
+                          className="text-red-500 hover:text-red-700 transition"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                
+                {isHost && (
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Add category..."
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                    />
+                    <Button onClick={handleAddCategory} size="icon">
+                      <Plus className="w-5 h-5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </GameCard>
+
             <GameCard className="bg-primary/5 border-primary/20">
               <h3 className="text-xl font-bold mb-2">Game Rules</h3>
               <ul className="space-y-2 text-muted-foreground">

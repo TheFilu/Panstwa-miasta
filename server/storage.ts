@@ -15,6 +15,7 @@ export interface IStorage {
   getRoomById(id: number): Promise<Room | undefined>;
   updateRoomStatus(id: number, status: string): Promise<Room>;
   updateRoomRound(id: number, roundNumber: number): Promise<Room>;
+  updateRoomCategories(id: number, categories: string[]): Promise<Room>;
   addUsedLetter(id: number, letter: string): Promise<Room>;
 
   // Players
@@ -65,6 +66,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateRoomRound(id: number, roundNumber: number): Promise<Room> {
     const [room] = await db.update(rooms).set({ roundNumber }).where(eq(rooms.id, id)).returning();
+    return room;
+  }
+
+  async updateRoomCategories(id: number, categories: string[]): Promise<Room> {
+    const [room] = await db.update(rooms).set({ categories }).where(eq(rooms.id, id)).returning();
     return room;
   }
 

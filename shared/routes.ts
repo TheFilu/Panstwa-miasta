@@ -103,6 +103,17 @@ export const api = {
         403: errorSchemas.validation,
       },
     },
+    updateCategories: {
+      method: 'POST' as const,
+      path: '/api/rooms/:code/categories',
+      input: z.object({
+        categories: z.array(z.string()),
+      }),
+      responses: {
+        200: z.object({ success: z.boolean() }),
+        404: errorSchemas.notFound,
+      },
+    },
   },
 };
 

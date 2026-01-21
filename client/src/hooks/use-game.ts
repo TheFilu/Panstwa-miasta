@@ -150,3 +150,24 @@ export function useSubmitAnswers() {
     },
   });
 }
+
+export function useUpdateCategories() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ code, categories }: { code: string, categories: string[] }) => {
+      const url = buildUrl(api.rooms.updateCategories.path, { code });
+      const res = await fetch(url, {
+        method: api.rooms.updateCategories.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ categories }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update categories");
+      return api.rooms.updateCategories.responses[200].parse(await res.json());
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [api.rooms.get.path, variables.code] });
+    },
+  });
+}

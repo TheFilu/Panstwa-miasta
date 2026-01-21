@@ -182,6 +182,17 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
+  app.post(api.rooms.updateCategories.path, async (req, res) => {
+    const room = await storage.getRoom(req.params.code);
+    if (!room) return res.status(404).json({ message: "Room not found" });
+    
+    if (room.status !== 'waiting') return res.status(400).json({ message: "Cannot update categories after game started" });
+
+    const { categories } = api.rooms.updateCategories.input.parse(req.body);
+    await storage.updateRoomCategories(room.id, categories);
+    res.json({ success: true });
+  });
+
   return httpServer;
 }
 
