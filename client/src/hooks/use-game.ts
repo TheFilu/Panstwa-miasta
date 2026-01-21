@@ -42,7 +42,9 @@ export function useRoom(code: string | undefined) {
       return api.rooms.get.responses[200].parse(await res.json());
     },
     enabled: !!code,
-    refetchInterval: 2000, // Poll every 2 seconds for live updates
+    refetchInterval: 1000, // Poll every 1 second for live updates
+    staleTime: 0,
+    gcTime: 0,
   });
 }
 
@@ -111,8 +113,6 @@ export function useJoinRoom() {
 }
 
 export function useStartGame() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (code: string) => {
       const url = buildUrl(api.rooms.start.path, { code });
@@ -128,14 +128,12 @@ export function useStartGame() {
       return api.rooms.start.responses[200].parse(await res.json());
     },
     onSuccess: (_, code) => {
-      queryClient.invalidateQueries({ queryKey: [api.rooms.get.path, code] });
+      libQueryClient.invalidateQueries({ queryKey: [api.rooms.get.path, code] });
     },
   });
 }
 
 export function useSubmitAnswers() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async ({ code, answers }: { code: string } & SubmitAnswersRequest) => {
       const url = buildUrl(api.rooms.submit.path, { code });
@@ -155,8 +153,6 @@ export function useSubmitAnswers() {
 }
 
 export function useUpdateCategories() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async ({ code, categories }: { code: string, categories: string[] }) => {
       const url = buildUrl(api.rooms.updateCategories.path, { code });
@@ -176,8 +172,6 @@ export function useUpdateCategories() {
 }
 
 export function useUpdateSettings() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async ({ code, settings }: { code: string, settings: { totalRounds?: number, timerDuration?: number | null } }) => {
       const url = buildUrl(api.rooms.updateSettings.path, { code });
