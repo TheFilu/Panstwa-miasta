@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRoute, useLocation } from "wouter";
-import { useRoom, getSession, clearSession, useStartGame, useSubmitAnswers, useUpdateCategories, useUpdateSettings } from "@/hooks/use-game";
+import { useRoom, getSession, clearSession, useStartGame, useSubmitAnswers, useUpdateCategories, useUpdateSettings, queryClient } from "@/hooks/use-game";
 import { Button } from "@/components/Button";
 import { GameCard } from "@/components/GameCard";
 import { Avatar } from "@/components/Avatar";
@@ -211,7 +211,13 @@ export default function Room() {
                     min="1"
                     max="20"
                     value={room.totalRounds}
-                    onChange={(e) => isHost && updateSettings.mutate({ code: room.code, settings: { totalRounds: parseInt(e.target.value) } })}
+                    onChange={(e) => {
+                      if (!isHost) return;
+                      updateSettings.mutate({ 
+                        code: room.code, 
+                        settings: { totalRounds: parseInt(e.target.value) } 
+                      });
+                    }}
                     disabled={!isHost}
                     className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50"
                   />
@@ -232,7 +238,6 @@ export default function Room() {
                       if (!isHost) return;
                       const val = parseInt(e.target.value);
                       const newDuration = val === 0 ? null : val;
-                      console.log("[Settings] Updating timer to:", newDuration);
                       updateSettings.mutate({ 
                         code: room.code, 
                         settings: { timerDuration: newDuration } 

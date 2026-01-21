@@ -1,7 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, QueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { type CreateRoomRequest, type JoinRoomRequest, type SubmitAnswersRequest } from "@shared/schema";
 import { useLocation } from "wouter";
+import { queryClient as libQueryClient } from "../lib/queryClient";
+
+export const queryClient = libQueryClient;
 
 // Session storage helper
 const STORAGE_KEY = "panstwo_miasto_session";
@@ -146,7 +149,7 @@ export function useSubmitAnswers() {
       return api.rooms.submit.responses[200].parse(await res.json());
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: [api.rooms.get.path, variables.code] });
+      libQueryClient.invalidateQueries({ queryKey: [api.rooms.get.path, variables.code] });
     },
   });
 }
@@ -167,7 +170,7 @@ export function useUpdateCategories() {
       return api.rooms.updateCategories.responses[200].parse(await res.json());
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: [api.rooms.get.path, variables.code] });
+      libQueryClient.invalidateQueries({ queryKey: [api.rooms.get.path, variables.code] });
     },
   });
 }
@@ -188,7 +191,7 @@ export function useUpdateSettings() {
       return api.rooms.updateSettings.responses[200].parse(await res.json());
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: [api.rooms.get.path, variables.code] });
+      libQueryClient.invalidateQueries({ queryKey: [api.rooms.get.path, variables.code] });
     },
   });
 }
