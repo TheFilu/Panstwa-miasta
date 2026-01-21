@@ -1,6 +1,15 @@
-import { useQuery, useMutation, useQueryClient, QueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  QueryClient,
+} from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
-import { type CreateRoomRequest, type JoinRoomRequest, type SubmitAnswersRequest } from "@shared/schema";
+import {
+  type CreateRoomRequest,
+  type JoinRoomRequest,
+  type SubmitAnswersRequest,
+} from "@shared/schema";
 import { useLocation } from "wouter";
 import { queryClient as libQueryClient } from "../lib/queryClient";
 
@@ -50,7 +59,7 @@ export function useRoom(code: string | undefined) {
 
 export function useCreateRoom() {
   const [, setLocation] = useLocation();
-  
+
   return useMutation({
     mutationFn: async (data: CreateRoomRequest) => {
       const res = await fetch(api.rooms.create.path, {
@@ -58,7 +67,7 @@ export function useCreateRoom() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      
+
       if (!res.ok) {
         if (res.status === 400) {
           const error = api.rooms.create.responses[400].parse(await res.json());
@@ -66,7 +75,7 @@ export function useCreateRoom() {
         }
         throw new Error("Failed to create room");
       }
-      
+
       return api.rooms.create.responses[201].parse(await res.json());
     },
     onSuccess: (data, variables) => {
@@ -94,7 +103,8 @@ export function useJoinRoom() {
 
       if (!res.ok) {
         if (res.status === 404) throw new Error("Room not found");
-        if (res.status === 409) throw new Error("Game already started or name taken");
+        if (res.status === 409)
+          throw new Error("Game already started or name taken");
         throw new Error("Failed to join room");
       }
 
@@ -121,21 +131,28 @@ export function useStartGame() {
       });
 
       if (!res.ok) {
-        const error = await res.json().catch(() => ({ message: "Failed to start game" }));
+        const error = await res
+          .json()
+          .catch(() => ({ message: "Failed to start game" }));
         throw new Error(error.message);
       }
-      
+
       return api.rooms.start.responses[200].parse(await res.json());
     },
     onSuccess: (_, code) => {
-      libQueryClient.invalidateQueries({ queryKey: [api.rooms.get.path, code] });
+      libQueryClient.invalidateQueries({
+        queryKey: [api.rooms.get.path, code],
+      });
     },
   });
 }
 
 export function useSubmitAnswers() {
   return useMutation({
-    mutationFn: async ({ code, answers }: { code: string } & SubmitAnswersRequest) => {
+    mutationFn: async ({
+      code,
+      answers,
+    }: { code: string } & SubmitAnswersRequest) => {
       const url = buildUrl(api.rooms.submit.path, { code });
       const res = await fetch(url, {
         method: api.rooms.submit.method,
@@ -147,14 +164,22 @@ export function useSubmitAnswers() {
       return api.rooms.submit.responses[200].parse(await res.json());
     },
     onSuccess: (_, variables) => {
-      libQueryClient.invalidateQueries({ queryKey: [api.rooms.get.path, variables.code] });
+      libQueryClient.invalidateQueries({
+        queryKey: [api.rooms.get.path, variables.code],
+      });
     },
   });
 }
 
 export function useUpdateCategories() {
   return useMutation({
-    mutationFn: async ({ code, categories }: { code: string, categories: string[] }) => {
+    mutationFn: async ({
+      code,
+      categories,
+    }: {
+      code: string;
+      categories: string[];
+    }) => {
       const url = buildUrl(api.rooms.updateCategories.path, { code });
       const res = await fetch(url, {
         method: api.rooms.updateCategories.method,
@@ -166,14 +191,22 @@ export function useUpdateCategories() {
       return api.rooms.updateCategories.responses[200].parse(await res.json());
     },
     onSuccess: (_, variables) => {
-      libQueryClient.invalidateQueries({ queryKey: [api.rooms.get.path, variables.code] });
+      libQueryClient.invalidateQueries({
+        queryKey: [api.rooms.get.path, variables.code],
+      });
     },
   });
 }
 
 export function useUpdateSettings() {
   return useMutation({
-    mutationFn: async ({ code, settings }: { code: string, settings: { totalRounds?: number, timerDuration?: number | null } }) => {
+    mutationFn: async ({
+      code,
+      settings,
+    }: {
+      code: string;
+      settings: { totalRounds?: number; timerDuration?: number | null };
+    }) => {
       const url = buildUrl(api.rooms.updateSettings.path, { code });
       const res = await fetch(url, {
         method: api.rooms.updateSettings.method,
@@ -185,7 +218,9 @@ export function useUpdateSettings() {
       return api.rooms.updateSettings.responses[200].parse(await res.json());
     },
     onSuccess: (_, variables) => {
-      libQueryClient.invalidateQueries({ queryKey: [api.rooms.get.path, variables.code] });
+      libQueryClient.invalidateQueries({
+        queryKey: [api.rooms.get.path, variables.code],
+      });
     },
   });
 }

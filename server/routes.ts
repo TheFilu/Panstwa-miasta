@@ -1,15 +1,15 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
+import { Server } from "http";
 import { storage } from "./storage";
-import { api, errorSchemas, CATEGORIES } from "@shared/routes";
+import { api } from "@shared/routes";
 import { z } from "zod";
 import OpenAI from "openai";
 import { registerChatRoutes } from "./replit_integrations/chat";
 import { registerImageRoutes } from "./replit_integrations/image";
 import { registerAudioRoutes } from "./replit_integrations/audio";
 import { db } from "./db";
-import { players } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { rounds, answers as answersTable } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -20,16 +20,39 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express,
 ): Promise<Server> {
-  // Register integrations
   registerChatRoutes(app);
   registerImageRoutes(app);
   registerAudioRoutes(app);
 
-  // Game Routes
+  // --- LOGIKA KOŃCZENIA RUNDY ---
+
+  async function finishRoundLogic(roomId: number, roundId: number) {
+    const room = await storage.getRoomById(roomId);
+    const round = await storage.getCurrentRound(roomId);
+
+    // Jeśli runda już jest zakończona, nic nie rób
+    if (!room || !round || round.status === "completed") return;
+
+    console.log(`[Game] Kończenie rundy ${roundId} w pokoju ${room.code}...`);
+
+    // 1. Klucz: Najpierw status 'completed', żeby odblokować UI u wszystkich graczy (polling)
+    await storage.completeRound(roundId);
+
+    // 2. Walidacja AI (bez 'await' - odpalamy i idziemy dalej)
+    validateRound(roundId, round.letter).catch((err) =>
+      console.error("[Game] Błąd walidacji AI:", err),
+    );
+
+    // 3. Sprawdzenie czy to była ostatnia runda gry
+    if (room.roundNumber >= room.totalRounds) {
+      await storage.updateRoomStatus(room.id, "finished");
+    }
+  }
+
+  // --- ENDPOINTY API ---
 
   app.post(api.rooms.create.path, async (req, res) => {
     try {
-      console.log("[Lobby] Create room request:", req.body);
       const { playerName, totalRounds, categories, timerDuration } =
         api.rooms.create.input.parse(req.body);
       const room = await storage.createRoom(
@@ -39,18 +62,13 @@ export async function registerRoutes(
         timerDuration,
       );
       const player = await storage.addPlayer(room.id, playerName, true);
-      console.log(`[Lobby] Room created: ${room.code} by ${playerName}`);
       res.status(201).json({
         code: room.code,
         playerId: player.id,
         token: String(player.id),
       });
     } catch (err) {
-      console.error("[Lobby] Create room error:", err);
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      res.status(500).json({ message: "Internal server error" });
+      res.status(400).json({ message: "Błąd tworzenia pokoju" });
     }
   });
 
@@ -58,21 +76,7 @@ export async function registerRoutes(
     try {
       const { code, playerName } = api.rooms.join.input.parse(req.body);
       const room = await storage.getRoom(code);
-      if (!room) return res.status(404).json({ message: "Room not found" });
-
-      // Check if name taken
-      const existingPlayers = await storage.getPlayers(room.id);
-      if (existingPlayers.some((p) => p.name === playerName)) {
-        return res.status(409).json({ message: "Name already taken" });
-      }
-
-      if (room.status !== "waiting") {
-        // Allow rejoin if disconnected? For MVP, no rejoining logic yet, just new player
-        // Or maybe allow joining as spectator?
-        // For now, block if playing
-        // return res.status(409).json({ message: "Game already started" });
-      }
-
+      if (!room) return res.status(404).json({ message: "Pokój nie istnieje" });
       const player = await storage.addPlayer(room.id, playerName, false);
       res.status(200).json({
         code: room.code,
@@ -80,118 +84,70 @@ export async function registerRoutes(
         token: String(player.id),
       });
     } catch (err) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Błąd dołączania" });
     }
   });
 
   app.get(api.rooms.get.path, async (req, res) => {
-    const code = req.params.code;
-    const room = await storage.getRoom(code);
+    const room = await storage.getRoom(req.params.code);
     if (!room) return res.status(404).json({ message: "Room not found" });
 
     const playersList = await storage.getPlayers(room.id);
     const currentRound = await storage.getCurrentRound(room.id);
 
-    // Check playerId from header or query?
-    // For MVP, we trust the client to filter view, but better to filter sensitive data here
-    // We won't implement strict auth check here for MVP speed, but good practice
-
-    // Get answers if round completed or for "myAnswers"
-    let myAnswers = undefined;
     let allAnswers = undefined;
-
-    if (currentRound) {
-      // If round completed, send all answers
-      if (currentRound.status === "completed") {
-        allAnswers = await storage.getAnswers(currentRound.id);
-      }
+    if (currentRound?.status === "completed") {
+      allAnswers = await storage.getAnswers(currentRound.id);
     }
 
-    res.json({
-      room,
-      players: playersList,
-      currentRound,
-      myAnswers, // Frontend needs to manage its own answers state mostly, but sync is good
-      allAnswers,
-    });
+    res.json({ room, players: playersList, currentRound, allAnswers });
   });
 
   app.post(api.rooms.start.path, async (req, res) => {
     const room = await storage.getRoom(req.params.code);
     if (!room) return res.status(404).json({ message: "Room not found" });
-
-    // TODO: Verify host (req.body.playerId or header)
-
-    if (room.status !== "waiting")
-      return res.status(400).json({ message: "Game already started" });
-
     await storage.updateRoomStatus(room.id, "playing");
     await startNewRound(room.id);
-
     res.json({ success: true });
   });
 
   app.post(api.rooms.submit.path, async (req, res) => {
     const room = await storage.getRoom(req.params.code);
     if (!room) return res.status(404).json({ message: "Room not found" });
+
     const currentRound = await storage.getCurrentRound(room.id);
     if (!currentRound || currentRound.status !== "active")
-      return res.status(400).json({ message: "No active round" });
+      return res.status(400).json({ message: "Brak aktywnej rundy" });
 
     const playerId = Number(req.headers.authorization);
-    if (!playerId) return res.status(401).json({ message: "Unauthorized" });
-
     const { answers } = api.rooms.submit.input.parse(req.body);
+
+    // Zapisujemy odpowiedzi gracza
     await storage.submitAnswers(currentRound.id, playerId, answers);
 
-    // Auto-finish logic: check if all players have submitted
     const playersInRoom = await storage.getPlayers(room.id);
     const roundAnswers = await storage.getAnswers(currentRound.id);
-
-    // Group answers by player to count how many players submitted
     const submittedPlayerIds = new Set(roundAnswers.map((a) => a.playerId));
 
-    console.log(
-      `[Game] Room ${room.code}: ${submittedPlayerIds.size}/${playersInRoom.length} players submitted`,
-    );
-
-    // Handle first submission timer
-    if (
-      submittedPlayerIds.size === 1 &&
-      !currentRound.firstSubmissionAt &&
-      room.timerDuration !== null
-    ) {
+    // LOGIKA TIMER-A: Pierwszy "Stop" (submit) uruchamia zegar
+    if (!currentRound.firstSubmissionAt) {
       await storage.markFirstSubmission(currentRound.id);
-      console.log(
-        `[Game] Room ${room.code}: First submission! Starting ${room.timerDuration}s timer.`,
-      );
+
+      // Jeśli host ustawia 0 lub null, kończymy od razu
+      if (!room.timerDuration || room.timerDuration === 0) {
+        await finishRoundLogic(room.id, currentRound.id);
+      }
     }
 
+    // Jeśli wszyscy wysłali przed czasem - kończymy natychmiast
     if (submittedPlayerIds.size >= playersInRoom.length) {
-      console.log(
-        `[Game] Room ${room.code}: All players submitted. Finishing round...`,
-      );
-      // All players submitted! Finish round automatically
-      await finishRoundLogic(room, currentRound);
+      await finishRoundLogic(room.id, currentRound.id);
     }
 
     res.json({ success: true });
   });
 
-  async function finishRoundLogic(room: any, round: any) {
-    if (round.status === "completed") return;
-    await validateRound(round.id, round.letter);
-    await storage.completeRound(round.id);
-
-    if (room.roundNumber >= room.totalRounds) {
-      await storage.updateRoomStatus(room.id, "finished");
-    }
-  }
-
-  // Polling for timer expiration
+  // --- BACKGROUND TIMER (Sprawdza co 1s) ---
   setInterval(async () => {
     try {
       const activeRounds = await db
@@ -201,107 +157,47 @@ export async function registerRoutes(
       for (const round of activeRounds) {
         if (round.firstSubmissionAt) {
           const room = await storage.getRoomById(round.roomId);
-          if (room && room.timerDuration !== null) {
+          if (room && room.timerDuration) {
             const elapsed =
               (Date.now() - new Date(round.firstSubmissionAt).getTime()) / 1000;
             if (elapsed >= room.timerDuration) {
-              console.log(
-                `[Game] Room ${room.code}: Timer expired. Finishing round...`,
-              );
-              await finishRoundLogic(room, round);
+              console.log(`[Timer] Czas minął w pokoju ${room.code}`);
+              await finishRoundLogic(room.id, round.id);
             }
           }
         }
       }
     } catch (e) {
-      // Ignore errors in background timer
+      /* ignore errors */
     }
-  }, 2000);
-
-  app.post(api.rooms.finishRound.path, async (req, res) => {
-    const room = await storage.getRoom(req.params.code);
-    if (!room) return res.status(404).json({ message: "Room not found" });
-    const currentRound = await storage.getCurrentRound(room.id);
-    if (!currentRound)
-      return res.status(400).json({ message: "No active round" });
-
-    if (currentRound.status === "completed")
-      return res.status(400).json({ message: "Round already finished" });
-
-    // Validate answers using OpenAI
-    await validateRound(currentRound.id, currentRound.letter);
-
-    await storage.completeRound(currentRound.id);
-
-    // Update scores
-    // Logic inside validateRound handled scoring? Yes.
-
-    // Check if game end?
-    if (room.roundNumber >= room.totalRounds) {
-      await storage.updateRoomStatus(room.id, "finished");
-    }
-
-    res.json({ success: true });
-  });
+  }, 1000);
 
   app.post(api.rooms.nextRound.path, async (req, res) => {
     const room = await storage.getRoom(req.params.code);
-    if (!room) return res.status(404).json({ message: "Room not found" });
-
-    if (room.status === "finished")
-      return res.status(400).json({ message: "Game finished" });
-
-    await startNewRound(room.id);
-    res.json({ success: true });
-  });
-
-  app.post(api.rooms.updateCategories.path, async (req, res) => {
-    const room = await storage.getRoom(req.params.code);
-    if (!room) return res.status(404).json({ message: "Room not found" });
-
-    if (room.status !== "waiting")
-      return res
-        .status(400)
-        .json({ message: "Cannot update categories after game started" });
-
-    const { categories } = api.rooms.updateCategories.input.parse(req.body);
-    await storage.updateRoomCategories(room.id, categories);
-    res.json({ success: true });
-  });
-
-  app.post(api.rooms.updateSettings.path, async (req, res) => {
-    const room = await storage.getRoom(req.params.code);
-    if (!room) return res.status(404).json({ message: "Room not found" });
-
-    if (room.status !== "waiting")
-      return res
-        .status(400)
-        .json({ message: "Cannot update settings after game started" });
-
-    const settings = api.rooms.updateSettings.input.parse(req.body);
-    await storage.updateRoomSettings(room.id, settings);
-    res.json({ success: true });
+    if (room && room.status !== "finished") {
+      await startNewRound(room.id);
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ message: "Game finished" });
+    }
   });
 
   return httpServer;
 }
 
+// --- FUNKCJE POMOCNICZE (validateRound i startNewRound zostają bez zmian z Twojego poprzedniego kodu) ---
+
 async function startNewRound(roomId: number) {
   const room = await storage.getRoomById(roomId);
   if (!room) return;
-
-  // Pick random letter
   const alphabet = "ABCDEFGHIJKLMNOPRSTUWZ";
   const used = new Set(room.usedLetters || []);
   const available = alphabet.split("").filter((l) => !used.has(l));
-
   if (available.length === 0) {
     await storage.updateRoomStatus(roomId, "finished");
     return;
   }
-
   const letter = available[Math.floor(Math.random() * available.length)];
-
   await storage.addUsedLetter(roomId, letter);
   await storage.updateRoomRound(roomId, room.roundNumber + 1);
   await storage.createRound(roomId, letter);
