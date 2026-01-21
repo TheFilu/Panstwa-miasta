@@ -29,11 +29,14 @@ export async function registerRoutes(
 
   app.post(api.rooms.create.path, async (req, res) => {
     try {
+      console.log("[Lobby] Create room request:", req.body);
       const { playerName, totalRounds, categories, timerDuration } = api.rooms.create.input.parse(req.body);
       const room = await storage.createRoom(playerName, totalRounds, categories, timerDuration);
       const player = await storage.addPlayer(room.id, playerName, true);
+      console.log(`[Lobby] Room created: ${room.code} by ${playerName}`);
       res.status(201).json({ code: room.code, playerId: player.id, token: String(player.id) });
     } catch (err) {
+      console.error("[Lobby] Create room error:", err);
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
       }

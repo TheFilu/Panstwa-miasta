@@ -131,6 +131,8 @@ export const CATEGORIES = [
 export type CreateRoomRequest = {
   playerName: string;
   totalRounds?: number;
+  timerDuration?: number | null;
+  categories?: string[];
 };
 
 export type JoinRoomRequest = {

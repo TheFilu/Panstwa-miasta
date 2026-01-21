@@ -23,6 +23,7 @@ export default function Landing() {
     if (!name.trim()) return;
     try {
       const categoryList = categories.split(",").map(c => c.trim()).filter(c => c.length > 0);
+      console.log("[Lobby] Creating room with:", { name, rounds, categoryList });
       await createRoom.mutateAsync({ 
         playerName: name, 
         totalRounds: rounds,
@@ -30,6 +31,7 @@ export default function Landing() {
         categories: categoryList.length > 0 ? categoryList : undefined
       });
     } catch (error: any) {
+      console.error("[Lobby] Create room error:", error);
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
