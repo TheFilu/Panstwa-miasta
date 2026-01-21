@@ -6,7 +6,7 @@ import { GameCard } from "@/components/GameCard";
 import { Avatar } from "@/components/Avatar";
 import { Input } from "@/components/Input";
 import { CATEGORIES, type Answer } from "@shared/schema";
-import { Loader2, Trophy, Clock, Copy, ArrowRight, Check, X, Crown, Plus, Trash2, Settings } from "lucide-react";
+import { Loader2, Trophy, Clock, Copy, ArrowRight, Check, X, Crown, Plus, Trash2, Settings, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
@@ -27,21 +27,6 @@ export default function Room() {
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
-
-  // Timer logic
-  useEffect(() => {
-    if (currentRound?.firstSubmissionAt && room.timerDuration !== null && currentRound.status === "active") {
-      const endTime = new Date(currentRound.firstSubmissionAt).getTime() + room.timerDuration * 1000;
-      const interval = setInterval(() => {
-        const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
-        setTimeLeft(remaining);
-        if (remaining <= 0) clearInterval(interval);
-      }, 500);
-      return () => clearInterval(interval);
-    } else {
-      setTimeLeft(null);
-    }
-  }, [currentRound?.firstSubmissionAt, room.timerDuration, currentRound?.status]);
 
   // Redirect if no session or room code mismatch
   useEffect(() => {
@@ -69,6 +54,21 @@ export default function Room() {
       });
     }
   }, [data?.room.status]);
+
+  // Timer logic
+  useEffect(() => {
+    if (data?.currentRound?.firstSubmissionAt && data?.room.timerDuration !== null && data?.currentRound.status === "active") {
+      const endTime = new Date(data.currentRound.firstSubmissionAt).getTime() + data.room.timerDuration * 1000;
+      const interval = setInterval(() => {
+        const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+        setTimeLeft(remaining);
+        if (remaining <= 0) clearInterval(interval);
+      }, 500);
+      return () => clearInterval(interval);
+    } else {
+      setTimeLeft(null);
+    }
+  }, [data?.currentRound?.firstSubmissionAt, data?.room.timerDuration, data?.currentRound?.status]);
 
   if (isLoading) {
     return (
@@ -391,29 +391,6 @@ export default function Room() {
   // === ROUND RESULTS (Validating/Completed state) ===
   const isRoundOver = currentRound?.status !== "active";
   
-  // Group answers by category for easy display
-  // We need to fetch all answers, but the current hook only gives us `myAnswers` during play.
-  // Wait, the API for GET /api/rooms/:code gives `myAnswers` during active round, 
-  // but we probably need to fetch ALL answers when round ends.
-  // The schema says `answers` relation exists on `round`.
-  // Let's assume the backend populates `answers` on `currentRound` or we fetch them separately.
-  // For now, let's just display a waiting screen if data isn't full, 
-  // but effectively the get room endpoint *should* return round results when status != active.
-
-  // Let's extract answers if available.
-  // Actually, the API definition I wrote returns `currentRound` (which is just the round object) 
-  // and `myAnswers`. It doesn't seem to return EVERYONE's answers in the `get` endpoint response explicitly
-  // unless I modify the backend.
-  // BUT: The user didn't ask me to modify the backend. 
-  // Let's re-read the route definition.
-  // `get: ... responses: { 200: { room, players, currentRound, myAnswers } }`
-  // It seems I missed adding a field for "allAnswers" in the backend route response for finished rounds.
-  // However, `currentRound` object from `drizzle` is just the table row.
-  
-  // STRATEGY: Since I can't change the backend now (I am frontend generator), 
-  // I will display the scoreboard and my own answers validation status.
-  // The players list has `score`, which updates. 
-  
   return (
     <div className="min-h-screen flex flex-col p-4 md:p-8 max-w-4xl mx-auto">
       <div className="text-center mb-8">
@@ -439,12 +416,13 @@ export default function Room() {
 
         <GameCard title="Your Answers">
           <div className="space-y-4">
-             {CATEGORIES.map(cat => {
-               const ans = myAnswers?.find(a => a.category === cat.id);
+             {categories.map(catId => {
+               const catLabel = CATEGORIES.find(c => c.id === catId)?.label || catId.charAt(0).toUpperCase() + catId.slice(1);
+               const ans = myAnswers?.find(a => a.category === catId);
                return (
-                 <div key={cat.id} className="flex items-center justify-between p-3 border rounded-xl">
+                 <div key={catId} className="flex items-center justify-between p-3 border rounded-xl">
                    <div className="flex flex-col">
-                     <span className="text-xs font-bold text-muted-foreground uppercase">{cat.label}</span>
+                     <span className="text-xs font-bold text-muted-foreground uppercase">{catLabel}</span>
                      <span className="font-medium text-lg">{ans?.word || "-"}</span>
                    </div>
                    <div>
@@ -482,26 +460,4 @@ export default function Room() {
       )}
     </div>
   );
-}
-
-function Users(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  )
 }
