@@ -231,7 +231,12 @@ export default function Room() {
                     onChange={(e) => {
                       if (!isHost) return;
                       const val = parseInt(e.target.value);
-                      updateSettings.mutate({ code: room.code, settings: { timerDuration: val === 0 ? null : val } });
+                      const newDuration = val === 0 ? null : val;
+                      console.log("[Settings] Updating timer to:", newDuration);
+                      updateSettings.mutate({ 
+                        code: room.code, 
+                        settings: { timerDuration: newDuration } 
+                      });
                     }}
                     disabled={!isHost}
                     className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50"

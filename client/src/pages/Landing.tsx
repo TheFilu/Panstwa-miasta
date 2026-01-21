@@ -27,7 +27,7 @@ export default function Landing() {
       await createRoom.mutateAsync({ 
         playerName: name, 
         totalRounds: rounds,
-        timerDuration: 15,
+        timerDuration: 10,
         categories: categoryList.length > 0 ? categoryList : undefined
       });
     } catch (error: any) {

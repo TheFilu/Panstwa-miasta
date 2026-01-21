@@ -39,7 +39,7 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  async createRoom(playerName: string, totalRounds: number = 5, categories?: string[], timerDuration: number | null = 15): Promise<Room> {
+  async createRoom(playerName: string, totalRounds: number = 5, categories?: string[], timerDuration: number | null = 10): Promise<Room> {
     const code = randomBytes(2).toString('hex').toUpperCase(); // 4 chars
     const [room] = await db.insert(rooms).values({
       code,
