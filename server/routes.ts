@@ -29,8 +29,8 @@ export async function registerRoutes(
 
   app.post(api.rooms.create.path, async (req, res) => {
     try {
-      const { playerName, totalRounds } = api.rooms.create.input.parse(req.body);
-      const room = await storage.createRoom(playerName, totalRounds);
+      const { playerName, totalRounds, categories } = api.rooms.create.input.parse(req.body);
+      const room = await storage.createRoom(playerName, totalRounds, categories);
       const player = await storage.addPlayer(room.id, playerName, true);
       res.status(201).json({ code: room.code, playerId: player.id, token: String(player.id) });
     } catch (err) {

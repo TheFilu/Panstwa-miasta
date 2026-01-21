@@ -10,7 +10,7 @@ import { randomBytes } from "crypto";
 
 export interface IStorage {
   // Rooms
-  createRoom(name: string, totalRounds?: number): Promise<Room>;
+  createRoom(name: string, totalRounds?: number, categories?: string[]): Promise<Room>;
   getRoom(code: string): Promise<Room | undefined>;
   getRoomById(id: number): Promise<Room | undefined>;
   updateRoomStatus(id: number, status: string): Promise<Room>;
@@ -25,7 +25,7 @@ export interface IStorage {
 
   // Rounds
   createRound(roomId: number, letter: string): Promise<Round>;
-  getRound(roomId: number, roundNumber: number): Promise<Round | undefined>; // Not exactly tracking round number in rounds table explicitly, but active one
+  getRound(roomId: number, roundNumber: number): Promise<Round | undefined>;
   getCurrentRound(roomId: number): Promise<Round | undefined>;
   completeRound(id: number): Promise<Round>;
 
@@ -36,12 +36,13 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  async createRoom(playerName: string, totalRounds: number = 5): Promise<Room> {
+  async createRoom(playerName: string, totalRounds: number = 5, categories?: string[]): Promise<Room> {
     const code = randomBytes(2).toString('hex').toUpperCase(); // 4 chars
     const [room] = await db.insert(rooms).values({
       code,
       totalRounds,
       status: 'waiting',
+      categories: categories || ['panstwo', 'miasto', 'imie', 'zwierze', 'rzecz', 'roslina'],
       usedLetters: [],
     }).returning();
     return room;

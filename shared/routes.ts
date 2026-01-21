@@ -25,6 +25,7 @@ export const api = {
       input: z.object({
         playerName: z.string().min(1),
         totalRounds: z.number().min(1).max(20).optional(),
+        categories: z.array(z.string()).optional(),
       }),
       responses: {
         201: z.object({
