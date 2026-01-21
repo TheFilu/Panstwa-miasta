@@ -135,7 +135,10 @@ export async function registerRoutes(
     // Group answers by player to count how many players submitted
     const submittedPlayerIds = new Set(roundAnswers.map(a => a.playerId));
     
+    console.log(`[Game] Room ${room.code}: ${submittedPlayerIds.size}/${playersInRoom.length} players submitted`);
+    
     if (submittedPlayerIds.size >= playersInRoom.length) {
+      console.log(`[Game] Room ${room.code}: All players submitted. Finishing round...`);
       // All players submitted! Finish round automatically
       await validateRound(currentRound.id, currentRound.letter);
       await storage.completeRound(currentRound.id);
@@ -264,7 +267,7 @@ async function validateRound(roundId: number, letter: string) {
                     Check if the word is valid for the category and starts with the letter. 
                     Allow minor typos. 
                     Categories in this game: ${categoriesToUse.join(', ')}.
-                    Respond with JSON object where keys are 'category:word' (lowercase) and value is { isValid: boolean, reason: string }.`
+                    Respond ONLY with a JSON object where keys are 'category:word' (exactly as provided in input, lowercase) and value is { "isValid": boolean, "reason": string }.`
                 },
                 {
                     role: "user",
@@ -275,6 +278,7 @@ async function validateRound(roundId: number, letter: string) {
         });
 
         const validationResults = JSON.parse(response.choices[0].message.content || "{}");
+        console.log(`[Game] Validation results for round ${roundId}:`, validationResults);
         
         // Apply scores
         for (const ans of answers) {
@@ -290,9 +294,6 @@ async function validateRound(roundId: number, letter: string) {
                 // Check duplicates
                 const count = answersByCategory[ans.category].filter(w => w === ans.word.toLowerCase()).length;
                 points = count > 1 ? 5 : 10;
-                
-                // If only one player has valid answer in this category? 
-                // Too complex for MVP, stick to 10/5.
             }
 
             await storage.updateAnswerValidation(ans.id, result.isValid, points, result.reason);
