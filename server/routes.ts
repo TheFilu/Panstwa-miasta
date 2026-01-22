@@ -36,7 +36,12 @@ export async function registerRoutes(
     console.log(`[Game] Kończenie rundy ${roundId} w pokoju ${room.code}...`);
 
     // 1. Klucz: Najpierw status 'completed', żeby odblokować UI u wszystkich graczy (polling)
-    await storage.completeRound(roundId);
+    try {
+      await storage.completeRound(roundId);
+      console.log(`[Game] Runda ${roundId} oznaczona jako zakończona.`);
+    } catch (err) {
+      console.error(`[Game] Błąd podczas completeRound:`, err);
+    }
 
     // 2. Walidacja AI
     // Używamy setTimeout, aby walidacja odbyła się po zakończeniu żądania i nie blokowała głównego wątku
@@ -48,7 +53,12 @@ export async function registerRoutes(
 
     // 3. Sprawdzenie czy to była ostatnia runda gry
     if (room.roundNumber >= room.totalRounds) {
-      await storage.updateRoomStatus(room.id, "finished");
+      try {
+        await storage.updateRoomStatus(room.id, "finished");
+        console.log(`[Game] Gra w pokoju ${room.code} zakończona.`);
+      } catch (err) {
+        console.error(`[Game] Błąd podczas updateRoomStatus (finished):`, err);
+      }
     }
   }
 
@@ -129,24 +139,30 @@ export async function registerRoutes(
     const { answers } = api.rooms.submit.input.parse(req.body);
 
     // Zapisujemy odpowiedzi gracza
+    console.log(`[Game] Player ${playerId} submitting answers for round ${currentRound.id}`);
     await storage.submitAnswers(currentRound.id, playerId, answers);
 
     const playersInRoom = await storage.getPlayers(room.id);
     const roundAnswers = await storage.getAnswers(currentRound.id);
     const submittedPlayerIds = new Set(roundAnswers.map((a) => a.playerId));
+    
+    console.log(`[Game] Status: ${submittedPlayerIds.size}/${playersInRoom.length} players submitted`);
 
     // LOGIKA TIMER-A: Pierwszy "Stop" (submit) uruchamia zegar
     if (!currentRound.firstSubmissionAt) {
+      console.log(`[Game] First submission received. Starting timer or finishing immediately.`);
       await storage.markFirstSubmission(currentRound.id);
 
       // Jeśli host ustawia 0 lub null, kończymy od razu
       if (!room.timerDuration || room.timerDuration === 0) {
+        console.log(`[Game] No timer duration set. Finishing round immediately.`);
         await finishRoundLogic(room.id, currentRound.id);
       }
     }
 
     // Jeśli wszyscy wysłali przed czasem - kończymy natychmiast
     if (submittedPlayerIds.size >= playersInRoom.length) {
+      console.log(`[Game] All players submitted. Finishing round immediately.`);
       await finishRoundLogic(room.id, currentRound.id);
     }
 
