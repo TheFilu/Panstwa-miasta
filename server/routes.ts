@@ -38,10 +38,13 @@ export async function registerRoutes(
     // 1. Klucz: Najpierw status 'completed', żeby odblokować UI u wszystkich graczy (polling)
     await storage.completeRound(roundId);
 
-    // 2. Walidacja AI (bez 'await' - odpalamy i idziemy dalej)
-    validateRound(roundId, round.letter).catch((err) =>
-      console.error("[Game] Błąd walidacji AI:", err),
-    );
+    // 2. Walidacja AI
+    // Używamy setTimeout, aby walidacja odbyła się po zakończeniu żądania i nie blokowała głównego wątku
+    setTimeout(() => {
+      validateRound(roundId, round.letter).catch((err) =>
+        console.error("[Game] Błąd walidacji AI:", err),
+      );
+    }, 100);
 
     // 3. Sprawdzenie czy to była ostatnia runda gry
     if (room.roundNumber >= room.totalRounds) {

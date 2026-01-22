@@ -12,10 +12,8 @@ export default function Landing() {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [rounds, setRounds] = useState(5);
-  const [categories, setCategories] = useState(
-    "państwo, miasto, imię, zwierzę, rzecz, roślina",
-  );
-
+  const [categories, setCategories] = useState("państwo, miasto, imię, zwierzę, rzecz, roślina");
+  
   const createRoom = useCreateRoom();
   const joinRoom = useJoinRoom();
   const { toast } = useToast();
@@ -24,28 +22,17 @@ export default function Landing() {
     e.preventDefault();
     if (!name.trim()) return;
     try {
-      const categoryList = categories
-        .split(",")
-        .map((c) => c.trim())
-        .filter((c) => c.length > 0);
-      console.log("[Lobby] Creating room with:", {
-        name,
-        rounds,
-        categoryList,
-      });
-      await createRoom.mutateAsync({
-        playerName: name,
+      const categoryList = categories.split(",").map(c => c.trim()).filter(c => c.length > 0);
+      console.log("[Lobby] Creating room with:", { name, rounds, categoryList });
+      await createRoom.mutateAsync({ 
+        playerName: name, 
         totalRounds: rounds,
         timerDuration: 10,
-        categories: categoryList.length > 0 ? categoryList : undefined,
+        categories: categoryList.length > 0 ? categoryList : undefined
       });
     } catch (error: any) {
       console.error("[Lobby] Create room error:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -55,17 +42,14 @@ export default function Landing() {
     try {
       await joinRoom.mutateAsync({ playerName: name, code });
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-lg space-y-8">
+        
         <div className="text-center space-y-2 mb-8">
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
@@ -95,23 +79,23 @@ export default function Landing() {
               className="grid gap-4"
             >
               <GameCard className="p-1">
-                <Button
-                  size="lg"
-                  className="w-full text-xl h-20"
+                <Button 
+                  size="lg" 
+                  className="w-full text-xl h-20" 
                   onClick={() => setMode("create")}
                 >
                   <Play className="mr-3 w-6 h-6" />
                   Stwórz pokój
                 </Button>
                 <div className="h-4" />
-                <Button
-                  size="lg"
-                  variant="secondary"
+                <Button 
+                  size="lg" 
+                  variant="secondary" 
                   className="w-full text-xl h-20"
                   onClick={() => setMode("join")}
                 >
                   <Users className="mr-3 w-6 h-6" />
-                  Dołącz
+                  Dołącz 
                 </Button>
               </GameCard>
             </motion.div>
@@ -153,15 +137,15 @@ export default function Landing() {
                     onChange={(e) => setCategories(e.target.value)}
                   />
                   <div className="flex gap-3 pt-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
                       onClick={() => setMode("menu")}
                     >
                       Back
                     </Button>
-                    <Button
-                      type="submit"
+                    <Button 
+                      type="submit" 
                       className="flex-1"
                       disabled={!name.trim()}
                       isLoading={createRoom.isPending}
@@ -197,15 +181,15 @@ export default function Landing() {
                     onChange={(e) => setName(e.target.value)}
                   />
                   <div className="flex gap-3 pt-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
                       onClick={() => setMode("menu")}
                     >
                       Back
                     </Button>
-                    <Button
-                      type="submit"
+                    <Button 
+                      type="submit" 
                       variant="secondary"
                       className="flex-1"
                       disabled={!name.trim() || !code.trim()}
@@ -219,6 +203,7 @@ export default function Landing() {
             </motion.div>
           )}
         </AnimatePresence>
+
       </div>
     </div>
   );
