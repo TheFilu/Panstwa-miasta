@@ -279,7 +279,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAnswers(roundId: number): Promise<Answer[]> {
-    return db.select().from(answers).where(eq(answers.roundId, roundId));
+    const allAnswers = await db.select().from(answers).where(eq(answers.roundId, roundId));
+    // Drizzle might return multiple rows per player/category. 
+    // We need to count unique players who have submitted AT LEAST ONE answer.
+    return allAnswers;
   }
 
   async updateAnswerValidation(

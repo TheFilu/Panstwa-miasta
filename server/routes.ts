@@ -161,8 +161,9 @@ export async function registerRoutes(
     }
 
     // Jeśli wszyscy wysłali przed czasem - kończymy natychmiast
-    if (submittedPlayerIds.size >= playersInRoom.length) {
-      console.log(`[Game] All players submitted. Finishing round immediately.`);
+    const allSubmitted = playersInRoom.every(p => submittedPlayerIds.has(p.id));
+    if (allSubmitted) {
+      console.log(`[Game] All ${playersInRoom.length} players submitted. Finishing round immediately.`);
       await finishRoundLogic(room.id, currentRound.id);
     }
 
