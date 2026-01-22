@@ -108,7 +108,7 @@ function RoomContent({
   room: any;
   players: any[];
   currentRound: any;
-  myAnswers: any[];
+  myAnswers: any[] | undefined;
   categories: string[];
   isHost: boolean | undefined;
   session: any;
@@ -293,7 +293,7 @@ function RoomContent({
                         e.key === "Enter" && handleAddCategory()
                       }
                     />
-                    <Button onClick={handleAddCategory} size="icon">
+                    <Button onClick={handleAddCategory} size="sm">
                       <Plus className="w-5 h-5" />
                     </Button>
                   </div>

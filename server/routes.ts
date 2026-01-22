@@ -92,7 +92,8 @@ export async function registerRoutes(
   });
 
   app.get(api.rooms.get.path, async (req, res) => {
-    const room = await storage.getRoom(req.params.code);
+    const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
+    const room = await storage.getRoom(code);
     if (!room) return res.status(404).json({ message: "Room not found" });
 
     const playersList = await storage.getPlayers(room.id);
@@ -107,7 +108,8 @@ export async function registerRoutes(
   });
 
   app.post(api.rooms.start.path, async (req, res) => {
-    const room = await storage.getRoom(req.params.code);
+    const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
+    const room = await storage.getRoom(code);
     if (!room) return res.status(404).json({ message: "Room not found" });
     await storage.updateRoomStatus(room.id, "playing");
     await startNewRound(room.id);
@@ -115,7 +117,8 @@ export async function registerRoutes(
   });
 
   app.post(api.rooms.submit.path, async (req, res) => {
-    const room = await storage.getRoom(req.params.code);
+    const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
+    const room = await storage.getRoom(code);
     if (!room) return res.status(404).json({ message: "Room not found" });
 
     const currentRound = await storage.getCurrentRound(room.id);
@@ -176,7 +179,8 @@ export async function registerRoutes(
   }, 1000);
 
   app.post(api.rooms.nextRound.path, async (req, res) => {
-    const room = await storage.getRoom(req.params.code);
+    const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
+    const room = await storage.getRoom(code);
     if (room && room.status !== "finished") {
       await startNewRound(room.id);
       res.json({ success: true });
