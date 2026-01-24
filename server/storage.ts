@@ -115,7 +115,7 @@ export class DatabaseStorage implements IStorage {
   async updateRoomRound(id: number, roundNumber: number): Promise<Room> {
     const [room] = await db
       .update(rooms)
-      .set({ roundNumber })
+      .set({ roundNumber, status: "playing" })
       .where(eq(rooms.id, id))
       .returning();
     return room;
@@ -199,6 +199,7 @@ export class DatabaseStorage implements IStorage {
         roomId,
         letter,
         status: "active",
+        startedAt: new Date(),
       })
       .returning();
     return round;

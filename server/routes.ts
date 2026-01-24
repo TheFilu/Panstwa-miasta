@@ -121,7 +121,11 @@ export async function registerRoutes(
     const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
     const room = await storage.getRoom(code);
     if (!room) return res.status(404).json({ message: "Room not found" });
+    
+    // Ustawiamy status pokoju na 'playing' i resetujemy numer rundy jeśli to konieczne
     await storage.updateRoomStatus(room.id, "playing");
+    await storage.updateRoomRound(room.id, 1);
+    
     await startNewRound(room.id);
     res.json({ success: true });
   });

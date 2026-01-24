@@ -136,13 +136,14 @@ function RoomContent({
     setLocalTimer(room.timerDuration);
   }, [room.timerDuration]);
 
+  // Reset inputs when round changes
   useEffect(() => {
-    // Resetujemy formularz tylko wtedy, gdy zaczyna się NOWA aktywna runda
     if (currentRound?.status === "active") {
       setInputs({});
       setHasSubmitted(false);
+      setTimeLeft(null);
     }
-  }, [currentRound?.id, currentRound?.status]); // Dodaj status do zależności
+  }, [currentRound?.id, currentRound?.status]);
 
   useEffect(() => {
     if (
