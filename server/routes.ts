@@ -136,6 +136,9 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Brak aktywnej rundy" });
 
     const playerId = Number(req.headers.authorization);
+    if (isNaN(playerId)) {
+      return res.status(401).json({ message: "Brak identyfikatora gracza" });
+    }
     const { answers } = api.rooms.submit.input.parse(req.body);
 
     // Zapisujemy odpowiedzi gracza

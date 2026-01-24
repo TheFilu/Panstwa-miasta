@@ -153,10 +153,16 @@ export function useSubmitAnswers() {
       code,
       answers,
     }: { code: string } & SubmitAnswersRequest) => {
+      const session = getSession();
+      if (!session) throw new Error("No session found");
+
       const url = buildUrl(api.rooms.submit.path, { code });
       const res = await fetch(url, {
         method: api.rooms.submit.method,
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": String(session.playerId)
+        },
         body: JSON.stringify({ answers }),
       });
 
