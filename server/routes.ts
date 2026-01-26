@@ -119,12 +119,12 @@ export async function registerRoutes(
 
   app.post(api.rooms.start.path, async (req, res) => {
     const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
+    console.log(`[Game] Starting game for room: ${code}`);
     const room = await storage.getRoom(code);
     if (!room) return res.status(404).json({ message: "Room not found" });
     
-    // Ustawiamy status pokoju na 'playing' i resetujemy numer rundy jeśli to konieczne
-    await storage.updateRoomStatus(room.id, "playing");
-    await storage.updateRoomRound(room.id, 1);
+    // Resetujemy numer rundy do 0 przed wywołaniem startNewRound, która go podbije do 1
+    await storage.updateRoomRound(room.id, 0);
     
     await startNewRound(room.id);
     res.json({ success: true });
@@ -139,16 +139,33 @@ export async function registerRoutes(
     if (!currentRound || currentRound.status !== "active")
       return res.status(400).json({ message: "Brak aktywnej rundy" });
 
-    const playerId = Number(req.headers.authorization);
+    const authHeader = req.headers.authorization;
+    const playerId = parseInt(authHeader || "", 10);
+    
     if (isNaN(playerId) || playerId <= 0) {
-      console.error(`[Game] Invalid playerId from authorization header: ${req.headers.authorization}`);
-      return res.status(401).json({ message: "Brak identyfikatora gracza" });
+      console.error(`[Game] AUTH ERROR: Invalid playerId from header: "${authHeader}" (Room: ${room.code})`);
+      return res.status(401).json({ 
+        message: "Brak poprawnej sesji gracza. Twój identyfikator to NaN. Proszę odśwież stronę lub dołącz ponownie.",
+        debugInfo: { authHeader, playerId }
+      });
     }
+    
+    const roundId = parseInt(String(currentRound.id), 10);
+    if (isNaN(roundId) || roundId <= 0) {
+      console.error(`[Game] STATE ERROR: Invalid roundId: ${currentRound.id} (Room: ${room.code})`);
+      return res.status(500).json({ message: "Błąd stanu gry: Nieprawidłowy identyfikator rundy." });
+    }
+
     const { answers } = api.rooms.submit.input.parse(req.body);
 
     // Zapisujemy odpowiedzi gracza
-    console.log(`[Game] Player ${playerId} submitting answers for round ${currentRound.id}`);
-    await storage.submitAnswers(currentRound.id, playerId, answers);
+    console.log(`[Game] Player ${playerId} submitting answers for round ${roundId} in room ${room.code}`);
+    try {
+      await storage.submitAnswers(roundId, playerId, answers);
+    } catch (err) {
+      console.error(`[Game] DATABASE ERROR in submitAnswers:`, err);
+      return res.status(500).json({ message: "Błąd zapisu odpowiedzi w bazie danych" });
+    }
 
     const playersInRoom = await storage.getPlayers(room.id);
     const roundAnswers = await storage.getAnswers(currentRound.id);
@@ -170,9 +187,11 @@ export async function registerRoutes(
 
     // Jeśli wszyscy wysłali przed czasem - kończymy natychmiast
     const allSubmitted = playersInRoom.every(p => submittedPlayerIds.has(p.id));
+    console.log(`[Game] All submitted check: ${allSubmitted} (Submitted: ${Array.from(submittedPlayerIds).join(",")}, Total: ${playersInRoom.map(p => p.id).join(",")})`);
+    
     if (allSubmitted) {
       console.log(`[Game] All ${playersInRoom.length} players submitted. Finishing round immediately.`);
-      await finishRoundLogic(room.id, currentRound.id);
+      await finishRoundLogic(room.id, roundId);
     }
 
     res.json({ success: true });
@@ -185,21 +204,24 @@ export async function registerRoutes(
         .select()
         .from(rounds)
         .where(eq(rounds.status, "active"));
+      
       for (const round of activeRounds) {
         if (round.firstSubmissionAt) {
           const room = await storage.getRoomById(round.roomId);
-          if (room && room.timerDuration) {
-            const elapsed =
-              (Date.now() - new Date(round.firstSubmissionAt).getTime()) / 1000;
+          if (room && room.timerDuration !== null && room.timerDuration !== undefined) {
+            const firstSubTime = new Date(round.firstSubmissionAt).getTime();
+            const now = Date.now();
+            const elapsed = (now - firstSubTime) / 1000;
+            
             if (elapsed >= room.timerDuration) {
-              console.log(`[Timer] Czas minął w pokoju ${room.code}`);
+              console.log(`[Timer] Czas minął w pokoju ${room.code} (Runda ${round.id}). Upłynęło: ${elapsed}s, Limit: ${room.timerDuration}s`);
               await finishRoundLogic(room.id, round.id);
             }
           }
         }
       }
     } catch (e) {
-      /* ignore errors */
+      console.error("[Timer] Błąd pętli głównej timera:", e);
     }
   }, 1000);
 

@@ -259,6 +259,11 @@ export class DatabaseStorage implements IStorage {
     playerId: number,
     submissions: Record<string, string>,
   ): Promise<void> {
+    if (isNaN(roundId) || isNaN(playerId) || roundId <= 0 || playerId <= 0) {
+      console.error(`[Storage] CRITICAL: Invalid IDs in submitAnswers - roundId: ${roundId}, playerId: ${playerId}`);
+      throw new Error(`Invalid ID syntax: roundId=${roundId}, playerId=${playerId}`);
+    }
+
     // Upsert answers? Or delete old ones?
     // Let's delete old ones for this round/player first to be safe (simple overwrite)
     await db
