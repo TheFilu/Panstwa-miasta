@@ -37,10 +37,15 @@ export async function registerRoutes(
 
     // 1. Klucz: Najpierw status 'completed', żeby odblokować UI u wszystkich graczy (polling)
     try {
-      await storage.completeRound(roundId);
+      const updatedRound = await storage.completeRound(roundId);
+      if (!updatedRound) {
+        console.error(`[Game] CRITICAL: completeRound returned null for ${roundId}`);
+        return;
+      }
       console.log(`[Game] Runda ${roundId} oznaczona jako zakończona.`);
     } catch (err) {
       console.error(`[Game] Błąd podczas completeRound:`, err);
+      return; // Przerwij jeśli nie udało się oznaczyć jako zakończone
     }
 
     // 2. Walidacja AI
@@ -135,12 +140,8 @@ export async function registerRoutes(
     const room = await storage.getRoom(code);
     if (!room) return res.status(404).json({ message: "Room not found" });
 
-    const currentRound = await storage.getCurrentRound(room.id);
-    if (!currentRound || currentRound.status !== "active")
-      return res.status(400).json({ message: "Brak aktywnej rundy" });
-
     const authHeader = req.headers.authorization;
-    const playerId = parseInt(authHeader || "", 10);
+    const playerId = parseInt(String(authHeader || ""), 10);
     
     if (isNaN(playerId) || playerId <= 0) {
       console.error(`[Game] AUTH ERROR: Invalid playerId from header: "${authHeader}" (Room: ${room.code})`);
@@ -148,6 +149,12 @@ export async function registerRoutes(
         message: "Brak poprawnej sesji gracza. Twój identyfikator to NaN. Proszę odśwież stronę lub dołącz ponownie.",
         debugInfo: { authHeader, playerId }
       });
+    }
+
+    const currentRound = await storage.getCurrentRound(room.id);
+    if (!currentRound || currentRound.status !== "active") {
+      console.log(`[Game] Submit rejected: Round is ${currentRound?.status || 'missing'} for room ${room.code}`);
+      return res.status(400).json({ message: "Brak aktywnej rundy" });
     }
     
     const roundId = parseInt(String(currentRound.id), 10);
@@ -187,9 +194,9 @@ export async function registerRoutes(
 
     // Jeśli wszyscy wysłali przed czasem - kończymy natychmiast
     const allSubmitted = playersInRoom.every(p => submittedPlayerIds.has(p.id));
-    console.log(`[Game] All submitted check: ${allSubmitted} (Submitted: ${Array.from(submittedPlayerIds).join(",")}, Total: ${playersInRoom.map(p => p.id).join(",")})`);
+    console.log(`[Game] All submitted check: ${allSubmitted} (Submitted count: ${submittedPlayerIds.size}, Total players: ${playersInRoom.length})`);
     
-    if (allSubmitted) {
+    if (allSubmitted && currentRound.status === "active") {
       console.log(`[Game] All ${playersInRoom.length} players submitted. Finishing round immediately.`);
       await finishRoundLogic(room.id, roundId);
     }

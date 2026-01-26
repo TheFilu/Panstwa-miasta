@@ -1,0 +1,56 @@
+2026-01-26 15:20:00.49
+18095456
+User
+hint: undefined,
+2026-01-26 15:20:00.49
+18095456
+User
+internalPosition: undefined,
+2026-01-26 15:20:00.49
+18095456
+User
+at /home/runner/workspace/dist/index.cjs:68:13326
+2026-01-26 15:20:00.49
+18095456
+User
+Internal Server Error: error: invalid input syntax for type integer: "NaN"
+2026-01-26 15:20:00.49
+18095456
+User
+table: undefined,
+2026-01-26 15:20:00.92
+18095456
+User
+2:20:00 PM [express] GET /api/rooms/1E67 304 in 61ms :: {"room":{"id":30,"code":"1E67","status":"playing","roundNumber":1,"totalRounds":5,"timerDuration":10,"categories":["państwo","miasto","imię","zwierzę","rzecz","roślina"],"usedLetters":["Z"],"createdAt":"2026-01-26T14:19:27.170Z"},"players":[{"id":55,"roomId":30,"name":"x","score":0,"isHost":true,"isReady":false,"socketId":null,"joinedAt":"2026-01-26T14:19:27.194Z"},{"id":56,"roomId":30,"name":"t","score":0,"isHost":false,"isReady":false,"socketId":null,"joinedAt":"2026-01-26T14:19:39.704Z"}],"currentRound":{"id":23,"roomId":30,"letter":"Z","status":"active","firstSubmissionAt":null,"startedAt":"2026-01-26T14:19:46.731Z","endedAt":null}}
+2026-01-26 15:20:02.17
+18095456
+User
+2:20:02 PM [express] GET /api/rooms/1E67 304 in 58ms :: {"room":{"id":30,"code":"1E67","status":"playing","roundNumber":1,"totalRounds":5,"timerDuration":10,"categories":["państwo","miasto","imię","zwierzę","rzecz","roślina"],"usedLetters":["Z"],"createdAt":"2026-01-26T14:19:27.170Z"},"players":[{"id":55,"roomId":30,"name":"x","score":0,"isHost":true,"isReady":false,"socketId":null,"joinedAt":"2026-01-26T14:19:27.194Z"},{"id":56,"roomId":30,"name":"t","score":0,"isHost":false,"isReady":false,"socketId":null,"joinedAt":"2026-01-26T14:19:39.704Z"}],"currentRound":{"id":23,"roomId":30,"letter":"Z","status":"active","firstSubmissionAt":null,"startedAt":"2026-01-26T14:19:46.731Z","endedAt":null}}
+2026-01-26 15:20:04.47
+18095456
+User
+detail: undefined,
+2026-01-26 15:20:04.47
+18095456
+User
+Internal Server Error: error: invalid input syntax for type integer: "NaN"
+2026-01-26 15:20:04.47
+18095456
+User
+hint: undefined,
+2026-01-26 15:20:04.47
+18095456
+User
+internalPosition: undefined,
+2026-01-26 15:20:04.47
+18095456
+User
+constraint: undefined,
+2026-01-26 15:20:04.47
+18095456
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-26 15:20:04.47
+18095456
+User
+length: 146,

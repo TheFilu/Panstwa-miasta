@@ -153,10 +153,13 @@ export function useSubmitAnswers() {
       code,
       answers,
     }: { code: string } & SubmitAnswersRequest) => {
-      const session = getSession();
       // Ensure we have a valid numeric playerId
-      const playerId = session?.playerId;
-      if (!playerId || isNaN(Number(playerId))) {
+      const session = getSession();
+      const rawPlayerId = session?.playerId;
+      const playerId = parseInt(String(rawPlayerId || ""), 10);
+
+      if (isNaN(playerId) || playerId <= 0) {
+        console.error("[useSubmitAnswers] Invalid playerId in session:", rawPlayerId);
         throw new Error("Invalid or missing player session. Please try joining again.");
       }
 
