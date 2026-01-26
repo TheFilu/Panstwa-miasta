@@ -154,19 +154,26 @@ export function useSubmitAnswers() {
       answers,
     }: { code: string } & SubmitAnswersRequest) => {
       const session = getSession();
-      if (!session) throw new Error("No session found");
+      // Ensure we have a valid numeric playerId
+      const playerId = session?.playerId;
+      if (!playerId || isNaN(Number(playerId))) {
+        throw new Error("Invalid or missing player session. Please try joining again.");
+      }
 
       const url = buildUrl(api.rooms.submit.path, { code });
       const res = await fetch(url, {
         method: api.rooms.submit.method,
         headers: { 
           "Content-Type": "application/json",
-          "Authorization": String(session.playerId)
+          "Authorization": String(playerId)
         },
         body: JSON.stringify({ answers }),
       });
 
-      if (!res.ok) throw new Error("Failed to submit answers");
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ message: "Failed to submit answers" }));
+        throw new Error(error.message || "Failed to submit answers");
+      }
       return api.rooms.submit.responses[200].parse(await res.json());
     },
     onSuccess: (_, variables) => {

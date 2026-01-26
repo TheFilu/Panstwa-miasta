@@ -140,7 +140,8 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Brak aktywnej rundy" });
 
     const playerId = Number(req.headers.authorization);
-    if (isNaN(playerId)) {
+    if (isNaN(playerId) || playerId <= 0) {
+      console.error(`[Game] Invalid playerId from authorization header: ${req.headers.authorization}`);
       return res.status(401).json({ message: "Brak identyfikatora gracza" });
     }
     const { answers } = api.rooms.submit.input.parse(req.body);
