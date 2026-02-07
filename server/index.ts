@@ -64,9 +64,9 @@ app.use((req, res, next) => {
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    const message = err.message || "Błąd wewnętrzny serwera";
 
-    console.error("Internal Server Error:", err);
+    console.error("Błąd wewnętrzny serwera:", err);
 
     if (res.headersSent) {
       return next(err);

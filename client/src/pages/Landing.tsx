@@ -32,7 +32,7 @@ export default function Landing() {
       });
     } catch (error: any) {
       console.error("[Lobby] Create room error:", error);
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Błąd", description: error.message, variant: "destructive" });
     }
   };
 
@@ -42,7 +42,7 @@ export default function Landing() {
     try {
       await joinRoom.mutateAsync({ playerName: name, code });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Błąd", description: error.message, variant: "destructive" });
     }
   };
 
@@ -95,7 +95,7 @@ export default function Landing() {
                   onClick={() => setMode("join")}
                 >
                   <Users className="mr-3 w-6 h-6" />
-                  Dołącz 
+                  Dołącz
                 </Button>
               </GameCard>
             </motion.div>
@@ -108,18 +108,18 @@ export default function Landing() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              <GameCard title="Create New Game" variant="primary">
+              <GameCard title="Stwórz nową grę" variant="primary">
                 <form onSubmit={handleCreate} className="space-y-6">
                   <Input
-                    label="Your Name"
-                    placeholder="Enter your nickname"
+                    label="Twoja nazwa"
+                    placeholder="Wpisz swój pseudonim"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     autoFocus
                   />
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-foreground/80 ml-1">
-                      Rounds: {rounds}
+                      Rundy: {rounds}
                     </label>
                     <input
                       type="range"
@@ -131,8 +131,8 @@ export default function Landing() {
                     />
                   </div>
                   <Input
-                    label="Categories (comma separated)"
-                    placeholder="e.g. panstwo, miasto, imie"
+                    label="Kategorie (oddzielone przecinkami)"
+                    placeholder="np. państwo, miasto, imię"
                     value={categories}
                     onChange={(e) => setCategories(e.target.value)}
                   />
@@ -142,7 +142,7 @@ export default function Landing() {
                       variant="ghost" 
                       onClick={() => setMode("menu")}
                     >
-                      Back
+                      Wstecz
                     </Button>
                     <Button 
                       type="submit" 
@@ -150,7 +150,7 @@ export default function Landing() {
                       disabled={!name.trim()}
                       isLoading={createRoom.isPending}
                     >
-                      Create Lobby
+                      Stwórz pokój
                     </Button>
                   </div>
                 </form>
@@ -165,18 +165,18 @@ export default function Landing() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              <GameCard title="Join Game" variant="secondary">
+              <GameCard title="Dołącz do gry" variant="secondary">
                 <form onSubmit={handleJoin} className="space-y-6">
                   <Input
-                    label="Room Code"
-                    placeholder="e.g. A1B2"
+                    label="Kod pokoju"
+                    placeholder="np. A1B2"
                     value={code}
                     onChange={(e) => setCode(e.target.value.toUpperCase())}
                     autoFocus
                   />
                   <Input
-                    label="Your Name"
-                    placeholder="Enter your nickname"
+                    label="Twoja nazwa"
+                    placeholder="Wpisz swój pseudonim"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                   />
@@ -186,7 +186,7 @@ export default function Landing() {
                       variant="ghost" 
                       onClick={() => setMode("menu")}
                     >
-                      Back
+                      Wstecz
                     </Button>
                     <Button 
                       type="submit" 
@@ -195,7 +195,7 @@ export default function Landing() {
                       disabled={!name.trim() || !code.trim()}
                       isLoading={joinRoom.isPending}
                     >
-                      Join Game
+                      Dołącz do gry
                     </Button>
                   </div>
                 </form>

@@ -69,8 +69,8 @@ export default function Room() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <GameCard className="text-center max-w-md w-full">
-          <h2 className="text-2xl font-bold mb-4">Room not found</h2>
-          <Button onClick={() => setLocation("/")}>Go Home</Button>
+          <h2 className="text-2xl font-bold mb-4">Pokój nie znaleziony</h2>
+          <Button onClick={() => setLocation("/")}>Wróć do domu</Button>
         </GameCard>
       </div>
     );
@@ -185,7 +185,7 @@ function RoomContent({
 
   const copyCode = () => {
     navigator.clipboard.writeText(room.code);
-    toast({ title: "Copied!", description: "Room code copied to clipboard" });
+    toast({ title: "Skopiowano!", description: "Kod pokoju skopiowany do schowka" });
   };
 
   const handleStart = () => startGame.mutate(room.code);
@@ -222,7 +222,7 @@ function RoomContent({
             className="cursor-pointer bg-white px-4 py-2 rounded-xl shadow-sm border border-border flex items-center gap-2 hover:bg-gray-50 transition"
           >
             <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Room Code
+              Kod pokoju
             </span>
             <span className="text-xl font-mono font-bold">{room.code}</span>
             <Copy className="w-4 h-4 text-primary ml-2" />
@@ -231,7 +231,7 @@ function RoomContent({
 
         <div className="grid md:grid-cols-2 gap-8 items-start">
           <GameCard
-            title="Players"
+            title="Gracze"
             icon={<Users className="w-5 h-5" />}
             className="h-full"
           >
@@ -260,7 +260,7 @@ function RoomContent({
 
           <div className="space-y-6">
             <GameCard
-              title="Categories"
+              title="Kategorie"
               className="bg-primary/5 border-primary/20"
             >
               <div className="space-y-4">
@@ -287,7 +287,7 @@ function RoomContent({
                 {isHost && (
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Add category..."
+                      placeholder="Dodaj kategorię..."
                       value={newCategory}
                       onChange={(e) => setNewCategory(e.target.value)}
                       onKeyDown={(e) =>
@@ -302,11 +302,11 @@ function RoomContent({
               </div>
             </GameCard>
 
-            <GameCard title="Settings" icon={<Settings className="w-5 h-5" />}>
+            <GameCard title="Ustawienia" icon={<Settings className="w-5 h-5" />}>
               <div className="space-y-6">
                 <div className="space-y-2">
                   <label className="text-sm font-bold flex justify-between">
-                    <span>Rounds</span>
+                    <span>Rundy</span>
                     <span className="text-primary">{room.totalRounds}</span>
                   </label>
                   <input
@@ -323,9 +323,9 @@ function RoomContent({
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold flex justify-between">
-                    <span>Timer</span>
+                    <span>Czas na odpowiedź</span>
                     <span className="text-primary">
-                      {localTimer === null ? "OFF" : `${localTimer}s`}
+                      {localTimer === null ? "WYŁĄCZONY" : `${localTimer}s`}
                     </span>
                   </label>
                   <input
@@ -351,13 +351,13 @@ function RoomContent({
                 disabled={players.length < 2 || startGame.isPending}
                 onClick={handleStart}
               >
-                {startGame.isPending ? "Starting..." : "Start Game"}
+                {startGame.isPending ? "Uruchamiam..." : "Rozpocznij grę"}
               </Button>
             ) : (
               <div className="text-center p-6 bg-white rounded-3xl border">
                 <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
                 <p className="font-medium text-muted-foreground">
-                  Waiting for host...
+                  Oczekiwanie na hosta...
                 </p>
               </div>
             )}
@@ -374,7 +374,7 @@ function RoomContent({
       <div className="min-h-screen flex items-center justify-center p-4">
         <GameCard className="max-w-2xl w-full text-center py-12">
           <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-6" />
-          <h1 className="text-4xl font-black mb-12">Game Over!</h1>
+          <h1 className="text-4xl font-black mb-12">Koniec gry!</h1>
           <div className="space-y-4 max-w-md mx-auto">
             {sortedPlayers.map((player, index) => (
               <div
@@ -389,7 +389,7 @@ function RoomContent({
             ))}
           </div>
           <Button className="mt-12" onClick={() => setLocation("/")}>
-            Back to Menu
+            Wróć do menu
           </Button>
         </GameCard>
       </div>
@@ -403,10 +403,10 @@ function RoomContent({
         <div className="flex justify-between items-center mb-8">
           <div>
             <span className="text-sm font-bold text-muted-foreground uppercase">
-              Round {room.roundNumber}/{room.totalRounds}
+              Runda {room.roundNumber}/{room.totalRounds}
             </span>
             <div className="flex items-center gap-3">
-              <span className="text-4xl font-black">Letter</span>
+              <span className="text-4xl font-black">Litera</span>
               <div className="bg-primary text-white text-4xl font-black w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg">
                 {currentRound.letter}
               </div>
@@ -427,7 +427,7 @@ function RoomContent({
               <GameCard key={catId}>
                 <Input
                   label={CATEGORIES.find((c) => c.id === catId)?.label || catId}
-                  placeholder={`Starts with ${currentRound.letter}...`}
+                  placeholder={`Zaczynając się od ${currentRound.letter}...`}
                   value={inputs[catId] || ""}
                   onChange={(e) =>
                     setInputs((prev) => ({ ...prev, [catId]: e.target.value }))
@@ -453,10 +453,10 @@ function RoomContent({
             >
               {hasSubmitted ? (
                 <div className="flex items-center gap-2">
-                  <Loader2 className="animate-spin" /> Waiting for others...
+                  <Loader2 className="animate-spin" /> Czekam na innych...
                 </div>
               ) : (
-                "Submit Answers"
+                "Wyślij odpowiedzi"
               )}
             </Button>
           </div>
@@ -471,12 +471,12 @@ function RoomContent({
   return (
     <div className="min-h-screen flex flex-col p-4 md:p-8 max-w-4xl mx-auto">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-black">Round Finished!</h2>
-        <p className="text-muted-foreground">Reviewing answers...</p>
+        <h2 className="text-3xl font-black">Runda skończona!</h2>
+        <p className="text-muted-foreground">Przegląd odpowiedzi...</p>
       </div>
       <div className="grid md:grid-cols-2 gap-8">
         <GameCard
-          title="Leaderboard"
+          title="Ranking"
           icon={<Trophy className="w-5 h-5 text-yellow-500" />}
         >
           <div className="space-y-4">
@@ -500,7 +500,7 @@ function RoomContent({
           </div>
         </GameCard>
 
-        <GameCard title="Your Answers">
+        <GameCard title="Twoje odpowiedzi">
           <div className="space-y-4">
             {categories.map((catId) => {
               const ans = myAnswers?.find((a) => a.category === catId);
@@ -540,7 +540,7 @@ function RoomContent({
             onClick={handleStart}
             disabled={startGame.isPending}
           >
-            Next Round <ArrowRight className="ml-2 w-5 h-5" />
+            Następna runda <ArrowRight className="ml-2 w-5 h-5" />
           </Button>
         </div>
       )}

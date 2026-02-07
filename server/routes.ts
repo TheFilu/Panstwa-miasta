@@ -109,7 +109,7 @@ export async function registerRoutes(
   app.get(api.rooms.get.path, async (req, res) => {
     const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
     const room = await storage.getRoom(code);
-    if (!room) return res.status(404).json({ message: "Room not found" });
+    if (!room) return res.status(404).json({ message: "Pokój nie znaleziony" });
 
     const playersList = await storage.getPlayers(room.id);
     const currentRound = await storage.getCurrentRound(room.id);
@@ -126,7 +126,7 @@ export async function registerRoutes(
     const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
     console.log(`[Game] Starting game for room: ${code}`);
     const room = await storage.getRoom(code);
-    if (!room) return res.status(404).json({ message: "Room not found" });
+    if (!room) return res.status(404).json({ message: "Pokój nie znaleziony" });
     
     // Resetujemy numer rundy do 0 przed wywołaniem startNewRound, która go podbije do 1
     await storage.updateRoomRound(room.id, 0);
@@ -246,7 +246,7 @@ export async function registerRoutes(
       await startNewRound(room.id);
       res.json({ success: true });
     } else {
-      res.status(400).json({ message: "Game finished" });
+      res.status(400).json({ message: "Gra skończona" });
     }
   });
 
