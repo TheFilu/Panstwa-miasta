@@ -141,12 +141,19 @@ export async function registerRoutes(
     if (!room) return res.status(404).json({ message: "Room not found" });
 
     const authHeader = req.headers.authorization;
-    const playerId = parseInt(String(authHeader || ""), 10);
+    if (!authHeader) {
+      console.error(`[Game] AUTH ERROR: Missing authorization header (Room: ${room.code})`);
+      return res.status(401).json({ 
+        message: "Brak sesji gracza. Proszę odśwież stronę lub dołącz ponownie.",
+      });
+    }
+    
+    const playerId = parseInt(String(authHeader), 10);
     
     if (isNaN(playerId) || playerId <= 0) {
       console.error(`[Game] AUTH ERROR: Invalid playerId from header: "${authHeader}" (Room: ${room.code})`);
       return res.status(401).json({ 
-        message: "Brak poprawnej sesji gracza. Twój identyfikator to NaN. Proszę odśwież stronę lub dołącz ponownie.",
+        message: "Nieprawidłowy identyfikator sesji. Proszę odśwież stronę lub dołącz ponownie.",
         debugInfo: { authHeader, playerId }
       });
     }

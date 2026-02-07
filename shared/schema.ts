@@ -112,6 +112,10 @@ export type Player = typeof players.$inferSelect;
 export type Round = typeof rounds.$inferSelect;
 export type Answer = typeof answers.$inferSelect;
 
+export type InsertRoom = typeof rooms.$inferInsert;
+export type InsertPlayer = typeof players.$inferInsert;
+export type InsertAnswer = typeof answers.$inferInsert;
+
 export type GameState = {
   room: Room;
   players: Player[];
