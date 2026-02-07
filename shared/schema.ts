@@ -14,7 +14,7 @@ export const rooms = pgTable("rooms", {
   status: text("status").notNull().default("waiting"), // waiting, playing, finished
   roundNumber: integer("round_number").notNull().default(0),
   totalRounds: integer("total_rounds").notNull().default(5),
-  timerDuration: integer("timer_duration").default(15), // Seconds after first submission, null = disabled
+  timerDuration: integer("timer_duration").default(10), // Seconds after first submission, null = disabled
   categories: jsonb("categories").$type<string[]>().default(['panstwo', 'miasto', 'imie', 'zwierze', 'rzecz', 'roslina']),
   usedLetters: jsonb("used_letters").$type<string[]>().default([]),
   createdAt: timestamp("created_at").defaultNow(),

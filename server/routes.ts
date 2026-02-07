@@ -86,6 +86,7 @@ export async function registerRoutes(
         token: String(player.id),
       });
     } catch (err) {
+      console.error("[API] Error creating room:", err);
       res.status(400).json({ message: "Błąd tworzenia pokoju" });
     }
   });
@@ -133,6 +134,41 @@ export async function registerRoutes(
     
     await startNewRound(room.id);
     res.json({ success: true });
+  });
+
+  app.post(api.rooms.updateCategories.path, async (req, res) => {
+    try {
+      const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
+      const { categories } = api.rooms.updateCategories.input.parse(req.body);
+      
+      const room = await storage.getRoom(code);
+      if (!room) return res.status(404).json({ message: "Pokój nie znaleziony" });
+      
+      await storage.updateRoomCategories(room.id, categories);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("[API] Error updating categories:", err);
+      res.status(400).json({ message: "Błąd aktualizacji kategorii" });
+    }
+  });
+
+  app.post(api.rooms.updateSettings.path, async (req, res) => {
+    try {
+      const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
+      const { totalRounds, timerDuration } = api.rooms.updateSettings.input.parse(req.body);
+      
+      const room = await storage.getRoom(code);
+      if (!room) return res.status(404).json({ message: "Pokój nie znaleziony" });
+      
+      await storage.updateRoomSettings(room.id, {
+        totalRounds,
+        timerDuration,
+      });
+      res.json({ success: true });
+    } catch (err) {
+      console.error("[API] Error updating settings:", err);
+      res.status(400).json({ message: "Błąd aktualizacji ustawień" });
+    }
   });
 
   app.post(api.rooms.submit.path, async (req, res) => {

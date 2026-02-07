@@ -192,13 +192,25 @@ function RoomContent({
   const handleAddCategory = () => {
     if (!newCategory.trim()) return;
     const updated = [...categories, newCategory.trim()];
-    updateCategories.mutate({ code: room.code, categories: updated });
-    setNewCategory("");
+    console.log("[Room] Adding category", { code: room.code, categories: updated });
+    updateCategories
+      .mutateAsync({ code: room.code, categories: updated })
+      .then(() => setNewCategory(""))
+      .catch((err) => {
+        console.error("[Room] updateCategories error:", err);
+        toast({ title: "Błąd", description: err.message || String(err), variant: "destructive" });
+      });
   };
 
   const handleRemoveCategory = (catToRemove: string) => {
     const updated = categories.filter((c: string) => c !== catToRemove);
-    updateCategories.mutate({ code: room.code, categories: updated });
+    console.log("[Room] Removing category", { code: room.code, categories: updated });
+    updateCategories
+      .mutateAsync({ code: room.code, categories: updated })
+      .catch((err) => {
+        console.error("[Room] updateCategories error:", err);
+        toast({ title: "Błąd", description: err.message || String(err), variant: "destructive" });
+      });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -275,6 +287,7 @@ function RoomContent({
                       </span>
                       {isHost && (
                         <button
+                          type="button"
                           onClick={() => handleRemoveCategory(cat)}
                           className="text-red-500"
                         >
@@ -294,7 +307,7 @@ function RoomContent({
                         e.key === "Enter" && handleAddCategory()
                       }
                     />
-                    <Button onClick={handleAddCategory} size="sm">
+                    <Button type="button" onClick={handleAddCategory} size="sm">
                       <Plus className="w-5 h-5" />
                     </Button>
                   </div>
