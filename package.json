@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "NODE_ENV=development tsx --env-file=.env server/index.ts",
     "build": "tsx script/build.ts",
-    "start": "NODE_ENV=production node dist/index.cjs",
+    "start": "NODE_ENV=production node --require dotenv/config dist/index.cjs",
     "check": "tsc",
+    "db:setup": "tsx --env-file=.env script/setup-db.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
@@ -48,6 +49,7 @@
     "cmdk": "^1.1.1",
     "connect-pg-simple": "^10.0.0",
     "date-fns": "^3.6.0",
+    "dotenv": "^17.2.4",
     "drizzle-orm": "^0.39.3",
     "drizzle-zod": "^0.7.1",
     "embla-carousel-react": "^8.6.0",

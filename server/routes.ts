@@ -16,6 +16,12 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
+// Check if OpenAI API key is configured
+const isOpenAIConfigured = !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+if (!isOpenAIConfigured) {
+  console.warn("[Server] ⚠️  OpenAI API key not configured. Answer validation will use fallback mode.");
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express,
@@ -85,9 +91,18 @@ export async function registerRoutes(
         playerId: player.id,
         token: String(player.id),
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("[API] Error creating room:", err);
-      res.status(400).json({ message: "Błąd tworzenia pokoju" });
+      
+      // Check if it's a validation error (400) or database error (500)
+      if (err.issues || err.name === "ZodError") {
+        res.status(400).json({ message: "Błąd walidacji danych" });
+      } else if (err.message?.includes("does not exist") || err.message?.includes("relation")) {
+        // Database table doesn't exist
+        res.status(500).json({ message: "Błąd bazy danych: Tabele nie zostały zainicjalizowane. Uruchom: npm run db:push" });
+      } else {
+        res.status(500).json({ message: err.message || "Błąd tworzenia pokoju" });
+      }
     }
   });
 
@@ -419,19 +434,57 @@ async function validateRound(roundId: number, letter: string) {
           await storage.updatePlayerScore(ans.playerId, points);
         }
       }
-    } catch (e) {
-      console.error("AI Validation failed:", e);
+    } catch (e: any) {
+      const isAuthError = e?.code === "invalid_api_key" || e?.status === 401;
+      
+      if (isAuthError) {
+        console.error("[Game] ❌ OpenAI API Authentication failed. Update your API key in .env file.");
+        console.error("[Game] Error details:", e.error?.message || e.message);
+      } else {
+        console.error("[Game] ⚠️  AI Validation failed:", e.message);
+      }
 
-      // FALLBACK: Jeśli AI zawiedzie, dajemy 10 pkt za każde słowo,
-      // żeby nie blokować gry!
+      // FALLBACK: Intelligent validation when AI is unavailable
+      // At minimum, check if word starts with correct letter and isn't empty
       for (const ans of answers) {
+        const wordLower = ans.word.toLowerCase().trim();
+        const letters = letter.toLowerCase();
+        
+        // Basic validation: word must start with the given letter
+        const startsWithCorrectLetter = wordLower.startsWith(letters);
+        
+        // Check for duplicates (words that multiple players submitted)
+        const count = answersByCategory[ans.category].filter(
+          (w) => w === wordLower,
+        ).length;
+        
+        // Award points only for valid words without AI
+        let points = 0;
+        let reason = "Fallback validation";
+        
+        if (startsWithCorrectLetter && wordLower.length > 0) {
+          // Valid basic check
+          points = count > 1 ? 5 : 10;
+          reason = isAuthError 
+            ? "Fallback (API key invalid)" 
+            : "Fallback (AI unavailable)";
+        } else {
+          // Invalid word
+          reason = !startsWithCorrectLetter 
+            ? "Invalid (wrong letter)" 
+            : "Invalid (empty)";
+        }
+
         await storage.updateAnswerValidation(
           ans.id,
-          true,
-          10,
-          "Fallback (AI Error)",
+          points > 0,
+          points,
+          reason,
         );
-        await storage.updatePlayerScore(ans.playerId, 10);
+
+        if (points > 0) {
+          await storage.updatePlayerScore(ans.playerId, points);
+        }
       }
     }
   }

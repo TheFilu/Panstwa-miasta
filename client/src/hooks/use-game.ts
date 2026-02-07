@@ -69,11 +69,16 @@ export function useCreateRoom() {
       });
 
       if (!res.ok) {
-        if (res.status === 400) {
-          const error = api.rooms.create.responses[400].parse(await res.json());
-          throw new Error(error.message);
+        let errorMessage = "Failed to create room";
+        try {
+          const errorData = await res.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (e) {
+          // Could not parse error response
         }
-        throw new Error("Failed to create room");
+        throw new Error(errorMessage);
       }
 
       return api.rooms.create.responses[201].parse(await res.json());

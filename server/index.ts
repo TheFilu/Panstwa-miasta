@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { initializeDatabase } from "./db";
 
 const app = express();
 const httpServer = createServer(app);
@@ -60,6 +61,19 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize database schema
+  await initializeDatabase();
+
+  // Check OpenAI API key
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  if (!apiKey) {
+    console.warn("\n[Server] ⚠️  WARNING: AI_INTEGRATIONS_OPENAI_API_KEY is not set");
+    console.warn("[Server] Answer validation will use fallback mode (basic checks only)\n");
+  } else if (!apiKey.startsWith("sk-proj-") && !apiKey.startsWith("sk-")) {
+    console.warn("\n[Server] ⚠️  WARNING: OpenAI API key may have invalid format");
+    console.warn("[Server] Expected format: sk-proj-... or sk-...\n");
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

@@ -72,7 +72,7 @@ export class DatabaseStorage implements IStorage {
     timerDuration: number | null = 10,
   ): Promise<Room> {
     const code = randomBytes(2).toString("hex").toUpperCase(); // 4 chars
-    const [room] = await db
+    const result = await db
       .insert(rooms)
       .values({
         code,
@@ -90,68 +90,88 @@ export class DatabaseStorage implements IStorage {
         usedLetters: [],
       })
       .returning();
-    return room;
+    
+    if (!result || result.length === 0) {
+      throw new Error("Failed to create room - database insert returned no results");
+    }
+    
+    return result[0];
   }
 
   async getRoom(code: string): Promise<Room | undefined> {
-    const [room] = await db.select().from(rooms).where(eq(rooms.code, code));
-    return room;
+    const result = await db.select().from(rooms).where(eq(rooms.code, code));
+    return result.length > 0 ? result[0] : undefined;
   }
 
   async getRoomById(id: number): Promise<Room | undefined> {
-    const [room] = await db.select().from(rooms).where(eq(rooms.id, id));
-    return room;
+    const result = await db.select().from(rooms).where(eq(rooms.id, id));
+    return result.length > 0 ? result[0] : undefined;
   }
 
   async updateRoomStatus(id: number, status: string): Promise<Room> {
-    const [room] = await db
+    const result = await db
       .update(rooms)
       .set({ status })
       .where(eq(rooms.id, id))
       .returning();
-    return room;
+    if (!result || result.length === 0) {
+      throw new Error("Failed to update room status - room not found");
+    }
+    return result[0];
   }
 
   async updateRoomRound(id: number, roundNumber: number): Promise<Room> {
-    const [room] = await db
+    const result = await db
       .update(rooms)
       .set({ roundNumber, status: "playing" })
       .where(eq(rooms.id, id))
       .returning();
-    return room;
+    if (!result || result.length === 0) {
+      throw new Error("Failed to update room round - room not found");
+    }
+    return result[0];
   }
 
   async updateRoomCategories(id: number, categories: string[]): Promise<Room> {
-    const [room] = await db
+    const result = await db
       .update(rooms)
       .set({ categories })
       .where(eq(rooms.id, id))
       .returning();
-    return room;
+    if (!result || result.length === 0) {
+      throw new Error("Failed to update room categories - room not found");
+    }
+    return result[0];
   }
 
   async updateRoomSettings(
     id: number,
     settings: { totalRounds?: number; timerDuration?: number | null },
   ): Promise<Room> {
-    const [room] = await db
+    const result = await db
       .update(rooms)
       .set(settings)
       .where(eq(rooms.id, id))
       .returning();
-    return room;
+    if (!result || result.length === 0) {
+      throw new Error("Failed to update room settings - room not found");
+    }
+    return result[0];
   }
 
   async addUsedLetter(id: number, letter: string): Promise<Room> {
     const room = await this.getRoomById(id);
     if (!room) throw new Error("Room not found");
     const usedLetters = [...(room.usedLetters || []), letter];
-    const [updated] = await db
+    const result = await db
       .update(rooms)
       .set({ usedLetters })
       .where(eq(rooms.id, id))
       .returning();
-    return updated;
+    if (!result || result.length === 0) {
+      throw new Error("Failed to add used letter - room not found");
+    }
+    return result[0];
   }
 
   async addPlayer(
@@ -159,7 +179,7 @@ export class DatabaseStorage implements IStorage {
     name: string,
     isHost: boolean = false,
   ): Promise<Player> {
-    const [player] = await db
+    const result = await db
       .insert(players)
       .values({
         roomId,
@@ -169,12 +189,17 @@ export class DatabaseStorage implements IStorage {
         isReady: false,
       })
       .returning();
-    return player;
+    
+    if (!result || result.length === 0) {
+      throw new Error("Failed to add player - database insert returned no results");
+    }
+    
+    return result[0];
   }
 
   async getPlayer(id: number): Promise<Player | undefined> {
-    const [player] = await db.select().from(players).where(eq(players.id, id));
-    return player;
+    const result = await db.select().from(players).where(eq(players.id, id));
+    return result.length > 0 ? result[0] : undefined;
   }
 
   async getPlayers(roomId: number): Promise<Player[]> {
@@ -184,16 +209,19 @@ export class DatabaseStorage implements IStorage {
   async updatePlayerScore(id: number, points: number): Promise<Player> {
     const player = await this.getPlayer(id);
     if (!player) throw new Error("Player not found");
-    const [updated] = await db
+    const result = await db
       .update(players)
       .set({ score: player.score + points })
       .where(eq(players.id, id))
       .returning();
-    return updated;
+    if (!result || result.length === 0) {
+      throw new Error("Failed to update player score - player not found");
+    }
+    return result[0];
   }
 
   async createRound(roomId: number, letter: string): Promise<Round> {
-    const [round] = await db
+    const result = await db
       .insert(rounds)
       .values({
         roomId,
@@ -202,29 +230,32 @@ export class DatabaseStorage implements IStorage {
         startedAt: new Date(),
       })
       .returning();
-    return round;
+    if (!result || result.length === 0) {
+      throw new Error("Failed to create round - database insert returned no results");
+    }
+    return result[0];
   }
 
   async getCurrentRound(roomId: number): Promise<Round | undefined> {
     // Get latest active or validating round
-    const [round] = await db
+    const result = await db
       .select()
       .from(rounds)
       .where(and(eq(rounds.roomId, roomId), eq(rounds.status, "active")))
       .orderBy(desc(rounds.startedAt))
       .limit(1);
 
-    if (round) return round;
+    if (result.length > 0) return result[0];
 
     // If no active, check for validating/completed to show results?
     // Usually we want the *latest* round regardless of status for display
-    const [latest] = await db
+    const latestResult = await db
       .select()
       .from(rounds)
       .where(eq(rounds.roomId, roomId))
       .orderBy(desc(rounds.startedAt))
       .limit(1);
-    return latest;
+    return latestResult.length > 0 ? latestResult[0] : undefined;
   }
 
   async getRound(
@@ -237,21 +268,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async completeRound(id: number): Promise<Round> {
-    const [round] = await db
+    const result = await db
       .update(rounds)
       .set({ status: "completed", endedAt: new Date() })
       .where(eq(rounds.id, id))
       .returning();
-    return round;
+    if (!result || result.length === 0) {
+      throw new Error("Failed to complete round - round not found");
+    }
+    return result[0];
   }
 
   async markFirstSubmission(id: number): Promise<Round> {
-    const [round] = await db
+    const result = await db
       .update(rounds)
       .set({ firstSubmissionAt: new Date() })
       .where(eq(rounds.id, id))
       .returning();
-    return round;
+    if (!result || result.length === 0) {
+      throw new Error("Failed to mark first submission - round not found");
+    }
+    return result[0];
   }
 
   async submitAnswers(
@@ -297,12 +334,15 @@ export class DatabaseStorage implements IStorage {
     points: number,
     reason?: string,
   ): Promise<Answer> {
-    const [answer] = await db
+    const result = await db
       .update(answers)
       .set({ isValid, points, validationReason: reason })
       .where(eq(answers.id, id))
       .returning();
-    return answer;
+    if (!result || result.length === 0) {
+      throw new Error("Failed to update answer validation - answer not found");
+    }
+    return result[0];
   }
 }
 
