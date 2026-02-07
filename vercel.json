@@ -13,8 +13,8 @@
   ],
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "server/index.ts"
+      "source": "/api/:path*",
+      "destination": "/"
     },
     {
       "source": "/(.*)",
