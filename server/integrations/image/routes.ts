@@ -11,7 +11,7 @@ export function registerImageRoutes(app: Express): void {
       }
 
       const response = await openai.images.generate({
-        model: "gpt-image-1",
+        model: "dall-e-3",
         prompt,
         n: 1,
         size: size as "1024x1024" | "512x512" | "256x256",
@@ -31,4 +31,3 @@ export function registerImageRoutes(app: Express): void {
     }
   });
 }
-

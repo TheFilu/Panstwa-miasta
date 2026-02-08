@@ -2,15 +2,14 @@ import OpenAI, { toFile } from "openai";
 import { Buffer } from "node:buffer";
 import { spawn } from "child_process";
 
-export const openai = process.env.AI_INTEGRATIONS_OPENAI_API_KEY ? new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+export const openai = process.env.OPENAI_API_KEY ? new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 }) : null;
 
 /**
  * Convert WebM audio buffer to WAV format using ffmpeg.
  * Browser MediaRecorder outputs WebM/opus which must be converted to WAV for audio APIs.
- * Note: Requires ffmpeg (available by default on Replit).
+ * Note: Requires ffmpeg (install via: apt install ffmpeg).
  *
  * @example
  * // In your route handler:
@@ -49,7 +48,7 @@ export function convertWebmToWav(webmBuffer: Buffer): Promise<Buffer> {
 
 /**
  * Voice Chat: User speaks, LLM responds with audio (audio-in, audio-out).
- * Uses gpt-audio-mini model via Replit AI Integrations.
+ * Uses OpenAI audio models.
  *
  * @example
  * // Converting browser WebM to WAV before calling:
@@ -135,7 +134,7 @@ export async function voiceChatStream(
 
 /**
  * Text-to-Speech: Converts text to speech verbatim.
- * Uses gpt-audio-mini model via Replit AI Integrations.
+ * Uses OpenAI audio models.
  */
 export async function textToSpeech(
   text: string,
@@ -160,7 +159,7 @@ export async function textToSpeech(
 
 /**
  * Streaming Text-to-Speech: Converts text to speech with real-time streaming.
- * Uses gpt-audio-mini model via Replit AI Integrations.
+ * Uses OpenAI audio models.
  * Note: Streaming only supports pcm16 output format.
  */
 export async function textToSpeechStream(
@@ -194,7 +193,7 @@ export async function textToSpeechStream(
 
 /**
  * Speech-to-Text: Transcribes audio using dedicated transcription model.
- * Uses gpt-4o-mini-transcribe for accurate transcription.
+ * Uses OpenAI Whisper for accurate transcription.
  */
 export async function speechToText(
   audioBuffer: Buffer,
@@ -213,7 +212,7 @@ export async function speechToText(
 
 /**
  * Streaming Speech-to-Text: Transcribes audio with real-time streaming.
- * Uses gpt-4o-mini-transcribe for accurate transcription.
+ * Uses OpenAI Whisper for accurate transcription.
  */
 export async function speechToTextStream(
   audioBuffer: Buffer,

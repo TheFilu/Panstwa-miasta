@@ -65,9 +65,9 @@ app.use((req, res, next) => {
   await initializeDatabase();
 
   // Check OpenAI API key
-  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    console.warn("\n[Server] ⚠️  WARNING: AI_INTEGRATIONS_OPENAI_API_KEY is not set");
+    console.warn("\n[Server] ⚠️  WARNING: OPENAI_API_KEY is not set");
     console.warn("[Server] Answer validation will use fallback mode (basic checks only)\n");
   } else if (!apiKey.startsWith("sk-proj-") && !apiKey.startsWith("sk-")) {
     console.warn("\n[Server] ⚠️  WARNING: OpenAI API key may have invalid format");
