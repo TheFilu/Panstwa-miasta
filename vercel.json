@@ -1,9 +1,25 @@
 {
   "version": 2,
   "buildCommand": "npm run db:push && npm run build",
-  "outputDirectory": "dist",
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.cjs" },
-    { "source": "/(.*)", "destination": "/public/index.html" }
+  "outputDirectory": "dist/public",
+  "functions": {
+    "api/*.ts": {
+      "memory": 3008,
+      "maxDuration": 30
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.cjs"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
   ]
 }
