@@ -6,8 +6,12 @@ set -e
 
 echo "🚀 Rozpoczynanie wdrażania..."
 
+# 0. Migracja bazy danych (wykonywana lokalnie)
+echo "🗄️ Aktualizacja bazy danych (db:push)..."
+npm run db:push || { echo "❌ Błąd migracji bazy danych!"; exit 1; }
+
 # 1. Buildowanie projektu
-echo "📦 Budowanie aplikacji..."
+echo "📦 Budowanie aplikacji (test)..."
 npm run build
 
 # 2. Sprawdzenie czy są zmiany
