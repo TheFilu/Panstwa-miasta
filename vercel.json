@@ -1,12 +1,6 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
-  "builds": [
-    {
-      "src": "dist/index.cjs",
-      "use": "@vercel/node"
-    }
-  ],
   "routes": [
     {
       "src": "/api/(.*)",
@@ -14,11 +8,11 @@
     },
     {
       "src": "/((?!api).)*",
-      "dest": "/dist/public/$1"
+      "dest": "/dist/public/index.html"
     },
     {
       "src": "/(.*)",
-      "dest": "/dist/public/index.html"
+      "dest": "/dist/public/$1"
     }
   ]
 }
