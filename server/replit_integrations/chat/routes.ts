@@ -2,10 +2,10 @@ import type { Express, Request, Response } from "express";
 import OpenAI from "openai";
 import { chatStorage } from "./storage";
 
-const openai = new OpenAI({
+const openai = process.env.AI_INTEGRATIONS_OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+}) : null;
 
 export function registerChatRoutes(app: Express): void {
   // Get all conversations
@@ -79,6 +79,12 @@ export function registerChatRoutes(app: Express): void {
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
+
+      if (!openai) {
+        res.write(`data: ${JSON.stringify({ error: "OpenAI API key not configured" })}\n\n`);
+        res.end();
+        return;
+      }
 
       // Stream response from OpenAI
       const stream = await openai.chat.completions.create({

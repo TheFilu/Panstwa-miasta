@@ -2,10 +2,10 @@ import OpenAI, { toFile } from "openai";
 import { Buffer } from "node:buffer";
 import { spawn } from "child_process";
 
-export const openai = new OpenAI({
+export const openai = process.env.AI_INTEGRATIONS_OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+}) : null;
 
 /**
  * Convert WebM audio buffer to WAV format using ffmpeg.
@@ -63,6 +63,9 @@ export async function voiceChat(
   inputFormat: "wav" | "mp3" = "wav",
   outputFormat: "wav" | "mp3" = "mp3"
 ): Promise<{ transcript: string; audioResponse: Buffer }> {
+  if (!openai) {
+    throw new Error("OpenAI API key not configured");
+  }
   const audioBase64 = audioBuffer.toString("base64");
   const response = await openai.chat.completions.create({
     model: "gpt-audio-mini",
@@ -99,6 +102,9 @@ export async function voiceChatStream(
   voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer" = "alloy",
   inputFormat: "wav" | "mp3" = "wav"
 ): Promise<AsyncIterable<{ type: "transcript" | "audio"; data: string }>> {
+  if (!openai) {
+    throw new Error("OpenAI API key not configured");
+  }
   const audioBase64 = audioBuffer.toString("base64");
   const stream = await openai.chat.completions.create({
     model: "gpt-audio-mini",
@@ -136,6 +142,9 @@ export async function textToSpeech(
   voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer" = "alloy",
   format: "wav" | "mp3" | "flac" | "opus" | "pcm16" = "wav"
 ): Promise<Buffer> {
+  if (!openai) {
+    throw new Error("OpenAI API key not configured");
+  }
   const response = await openai.chat.completions.create({
     model: "gpt-audio-mini",
     modalities: ["text", "audio"],
@@ -158,6 +167,9 @@ export async function textToSpeechStream(
   text: string,
   voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer" = "alloy"
 ): Promise<AsyncIterable<string>> {
+  if (!openai) {
+    throw new Error("OpenAI API key not configured");
+  }
   const stream = await openai.chat.completions.create({
     model: "gpt-audio-mini",
     modalities: ["text", "audio"],
@@ -188,6 +200,9 @@ export async function speechToText(
   audioBuffer: Buffer,
   format: "wav" | "mp3" | "webm" = "wav"
 ): Promise<string> {
+  if (!openai) {
+    throw new Error("OpenAI API key not configured");
+  }
   const file = await toFile(audioBuffer, `audio.${format}`);
   const response = await openai.audio.transcriptions.create({
     file,
@@ -204,6 +219,9 @@ export async function speechToTextStream(
   audioBuffer: Buffer,
   format: "wav" | "mp3" | "webm" = "wav"
 ): Promise<AsyncIterable<string>> {
+  if (!openai) {
+    throw new Error("OpenAI API key not configured");
+  }
   const file = await toFile(audioBuffer, `audio.${format}`);
   const stream = await openai.audio.transcriptions.create({
     file,
@@ -319,6 +337,9 @@ export async function* voiceChatWithTextModel(
     locale?: string; // For sentence segmentation (e.g., "en", "ja", "zh")
   } = {}
 ): AsyncGenerator<VoiceChatStreamEvent> {
+  if (!openai) {
+    throw new Error("OpenAI API key not configured");
+  }
   const {
     voice = "alloy",
     inputFormat = "wav",

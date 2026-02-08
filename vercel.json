@@ -1,18 +1,23 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/dist/index.cjs"
+      "dest": "/index.cjs"
     },
     {
-      "src": "/((?!api).)*",
-      "dest": "/dist/public/index.html"
+      "src": "/assets/(.*)",
+      "dest": "/public/assets/$1"
+    },
+    {
+      "src": "/(.*\\.\\w+)$",
+      "dest": "/public/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/dist/public/$1"
+      "dest": "/public/index.html"
     }
   ]
 }

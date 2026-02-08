@@ -3,32 +3,54 @@ import { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import OpenAI from "openai";
-import { registerChatRoutes } from "./replit_integrations/chat";
-import { registerImageRoutes } from "./replit_integrations/image";
-import { registerAudioRoutes } from "./replit_integrations/audio";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "./db";
 import { rounds, answers as answersTable } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+// Check if Gemini API key is configured
+const isGeminiConfigured = !!process.env.GEMINI_API_KEY;
+const genAI = isGeminiConfigured ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY!) : null;
 
-// Check if OpenAI API key is configured
-const isOpenAIConfigured = !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-if (!isOpenAIConfigured) {
-  console.warn("[Server] ⚠️  OpenAI API key not configured. Answer validation will use fallback mode.");
+// Fallback validation function
+async function applyFallbackValidation(
+  answers: any[],
+  answersByCategory: Record<string, string[]>,
+  letter: string
+) {
+  for (const ans of answers) {
+    const wordLower = ans.word.toLowerCase().trim();
+    const letters = letter.toLowerCase();
+
+    // Basic validation: word must start with the given letter
+    const startsWithCorrectLetter = wordLower.startsWith(letters);
+
+    // Check for duplicates (words that multiple players submitted)
+    const count = answersByCategory[ans.category].filter((w) => w === wordLower).length;
+
+    // Award points only for valid words
+    let points = 0;
+    let reason = "Fallback validation";
+
+    if (startsWithCorrectLetter && wordLower.length > 0) {
+      // Valid basic check
+      points = count > 1 ? 5 : 10;
+    } else {
+      // Invalid word
+      reason = !startsWithCorrectLetter ? "Invalid (wrong letter)" : "Invalid (empty)";
+    }
+
+    await storage.updateAnswerValidation(ans.id, points > 0, points, reason);
+    if (points > 0) {
+      await storage.updatePlayerScore(ans.playerId, points);
+    }
+  }
 }
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express,
 ): Promise<Server> {
-  registerChatRoutes(app);
-  registerImageRoutes(app);
-  registerAudioRoutes(app);
 
   // --- LOGIKA KOŃCZENIA RUNDY ---
 
@@ -356,136 +378,56 @@ async function validateRound(roundId: number, letter: string) {
     answersByCategory[ans.category].push(ans.word.toLowerCase());
   }
 
-  // Validate each unique word-category pair with OpenAI
-  const wordsToValidate: { category: string; word: string }[] = [];
-  const uniqueKeys = new Set<string>();
+  // Validate answers
+  if (isGeminiConfigured && genAI) {
+    // Use Gemini for validation
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    const prompt = `You are a strict judge for the game 'Państwa-Miasta' (Categories). 
+Letter is '${letter}'. 
+Check if each word is valid for its category and starts with the letter. 
+Allow minor typos. 
+Categories in this game: ${categoriesToUse.join(", ")}.
+Respond ONLY with a JSON object where keys are 'category:word' (exactly as provided in input, lowercase) and value is { "isValid": boolean, "reason": string }.
 
-  for (const ans of answers) {
-    const key = `${ans.category}:${ans.word.toLowerCase()}`;
-    if (!uniqueKeys.has(key)) {
-      uniqueKeys.add(key);
-      wordsToValidate.push({ category: ans.category, word: ans.word });
-    }
-  }
+Words to validate: ${JSON.stringify(
+  answers.map((ans) => `${ans.category}:${ans.word.toLowerCase()}`),
+)}`;
 
-  if (wordsToValidate.length > 0) {
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: `You are a strict judge for the game 'Państwa-Miasta' (Categories). 
-                    Letter is '${letter}'. 
-                    Check if the word is valid for the category and starts with the letter. 
-                    Allow minor typos. 
-                    Categories in this game: ${categoriesToUse.join(", ")}.
-                    Respond ONLY with a JSON object where keys are 'category:word' (exactly as provided in input, lowercase) and value is { "isValid": boolean, "reason": string }.`,
-          },
-          {
-            role: "user",
-            content: JSON.stringify(
-              wordsToValidate.map(
-                (w) => `${w.category}:${w.word.toLowerCase()}`,
-              ),
-            ),
-          },
-        ],
-        response_format: { type: "json_object" },
-      });
-
-      const validationResults = JSON.parse(
-        response.choices[0].message.content || "{}",
-      );
-      console.log(
-        `[Game] Validation results for round ${roundId}:`,
-        validationResults,
-      );
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      
+      // Parse JSON from response
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const validationResults = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+      
+      console.log(`[Game] Gemini validation results for round ${roundId}:`, validationResults);
 
       // Apply scores
       for (const ans of answers) {
         const key = `${ans.category}:${ans.word.toLowerCase()}`;
-        // Handle if validationResults structure matches key or is different
-        // The prompt asked for keys as 'category:word'
-
-        // Note: GPT might return object with keys matching input array strings
-        const result = validationResults[key] || {
-          isValid: false,
-          reason: "AI error",
-        };
-
+        const result = validationResults[key] || { isValid: false, reason: "AI error" };
+        
         let points = 0;
         if (result.isValid) {
-          // Check duplicates
-          const count = answersByCategory[ans.category].filter(
-            (w) => w === ans.word.toLowerCase(),
-          ).length;
+          const count = answersByCategory[ans.category].filter((w) => w === ans.word.toLowerCase()).length;
           points = count > 1 ? 5 : 10;
         }
 
-        await storage.updateAnswerValidation(
-          ans.id,
-          result.isValid,
-          points,
-          result.reason,
-        );
-
+        await storage.updateAnswerValidation(ans.id, result.isValid, points, result.reason);
         if (points > 0) {
           await storage.updatePlayerScore(ans.playerId, points);
         }
       }
-    } catch (e: any) {
-      const isAuthError = e?.code === "invalid_api_key" || e?.status === 401;
-      
-      if (isAuthError) {
-        console.error("[Game] ❌ OpenAI API Authentication failed. Update your API key in .env file.");
-        console.error("[Game] Error details:", e.error?.message || e.message);
-      } else {
-        console.error("[Game] ⚠️  AI Validation failed:", e.message);
-      }
-
-      // FALLBACK: Intelligent validation when AI is unavailable
-      // At minimum, check if word starts with correct letter and isn't empty
-      for (const ans of answers) {
-        const wordLower = ans.word.toLowerCase().trim();
-        const letters = letter.toLowerCase();
-        
-        // Basic validation: word must start with the given letter
-        const startsWithCorrectLetter = wordLower.startsWith(letters);
-        
-        // Check for duplicates (words that multiple players submitted)
-        const count = answersByCategory[ans.category].filter(
-          (w) => w === wordLower,
-        ).length;
-        
-        // Award points only for valid words without AI
-        let points = 0;
-        let reason = "Fallback validation";
-        
-        if (startsWithCorrectLetter && wordLower.length > 0) {
-          // Valid basic check
-          points = count > 1 ? 5 : 10;
-          reason = isAuthError 
-            ? "Fallback (API key invalid)" 
-            : "Fallback (AI unavailable)";
-        } else {
-          // Invalid word
-          reason = !startsWithCorrectLetter 
-            ? "Invalid (wrong letter)" 
-            : "Invalid (empty)";
-        }
-
-        await storage.updateAnswerValidation(
-          ans.id,
-          points > 0,
-          points,
-          reason,
-        );
-
-        if (points > 0) {
-          await storage.updatePlayerScore(ans.playerId, points);
-        }
-      }
+    } catch (error) {
+      console.error("[Game] Gemini validation failed:", error);
+      // Fall back to basic validation
+      await applyFallbackValidation(answers, answersByCategory, letter);
     }
+  } else {
+    // Fallback validation
+    await applyFallbackValidation(answers, answersByCategory, letter);
   }
 }
