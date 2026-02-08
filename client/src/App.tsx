@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { lazy, Suspense } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const Landing = lazy(() => import("@/pages/Landing"));
 const Room = lazy(() => import("@/pages/Room"));
@@ -27,6 +28,7 @@ function App() {
       <TooltipProvider>
         <Router />
         <Toaster />
+        <SpeedInsights />
       </TooltipProvider>
     </QueryClientProvider>
   );
