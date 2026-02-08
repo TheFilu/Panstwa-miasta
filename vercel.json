@@ -4,25 +4,20 @@
     {
       "src": "dist/index.cjs",
       "use": "@vercel/node"
-    },
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "dist/public" }
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "dest": "/dist/index.cjs"
     },
     {
-      "src": "/(?!api)([^.]*)",
-      "dest": "/dist/public/index.html"
+      "src": "/((?!api).)*",
+      "dest": "/dist/public/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/dist/public/$1"
+      "dest": "/dist/public/index.html"
     }
   ]
 }
