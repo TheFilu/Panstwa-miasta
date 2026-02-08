@@ -10,14 +10,7 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath, { 
-    // Ensure proper MIME types
-    setHeaders: (res, filepath) => {
-      if (filepath.endsWith('.js')) res.setHeader('Content-Type', 'application/javascript');
-      if (filepath.endsWith('.css')) res.setHeader('Content-Type', 'text/css');
-      if (filepath.endsWith('.json')) res.setHeader('Content-Type', 'application/json');
-    }
-  }));
+  app.use(express.static(distPath));
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
