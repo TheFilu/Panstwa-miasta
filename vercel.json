@@ -1,23 +1,9 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run db:push && npm run build",
   "outputDirectory": "dist",
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/index.cjs"
-    },
-    {
-      "src": "/assets/(.*)",
-      "dest": "/public/assets/$1"
-    },
-    {
-      "src": "/(.*\\.\\w+)$",
-      "dest": "/public/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/public/index.html"
-    }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.cjs" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
