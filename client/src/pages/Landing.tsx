@@ -12,7 +12,7 @@ export default function Landing() {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [rounds, setRounds] = useState(5);
-  const [categories, setCategories] = useState("państwo, miasto, imię, zwierzę, rzecz, roślina");
+  const [categories, setCategories] = useState("Państwo, Miasto, Imię, Zwierzę, Rzecz, Roślina");
   
   const createRoom = useCreateRoom();
   const joinRoom = useJoinRoom();
@@ -132,7 +132,7 @@ export default function Landing() {
                   </div>
                   <Input
                     label="Kategorie (oddzielone przecinkami)"
-                    placeholder="np. państwo, miasto, imię"
+                    placeholder="np. Państwo, Miasto, Imię"
                     value={categories}
                     onChange={(e) => setCategories(e.target.value)}
                   />

@@ -128,6 +128,12 @@ function RoomContent({
   const [localTimer, setLocalTimer] = useState<number | null>(
     room.timerDuration,
   );
+  const formatCategoryLabel = (categoryId: string) => {
+    const label = CATEGORIES.find((c) => c.id === categoryId)?.label;
+    if (label) return label;
+    if (!categoryId) return categoryId;
+    return categoryId.charAt(0).toUpperCase() + categoryId.slice(1);
+  };
 
   useEffect(() => {
     setLocalRounds(room.totalRounds);
@@ -283,7 +289,7 @@ function RoomContent({
                       className="bg-white border rounded-lg px-3 py-1 flex items-center gap-2"
                     >
                       <span className="font-medium">
-                        {CATEGORIES.find((c) => c.id === cat)?.label || cat}
+                        {formatCategoryLabel(cat)}
                       </span>
                       {isHost && (
                         <button
@@ -439,7 +445,7 @@ function RoomContent({
             {categories.map((catId: string) => (
               <GameCard key={catId}>
                 <Input
-                  label={CATEGORIES.find((c) => c.id === catId)?.label || catId}
+                  label={formatCategoryLabel(catId)}
                   placeholder={`Zaczynając się od ${currentRound.letter}...`}
                   value={inputs[catId] || ""}
                   onChange={(e) =>
@@ -524,7 +530,7 @@ function RoomContent({
                 >
                   <div className="flex flex-col">
                     <span className="text-xs font-bold text-muted-foreground uppercase">
-                      {catId}
+                      {formatCategoryLabel(catId)}
                     </span>
                     <span className="font-medium text-lg">
                       {ans?.word || "-"}
