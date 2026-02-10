@@ -245,3 +245,47 @@ export function useUpdateSettings() {
     },
   });
 }
+
+export function useVoteAnswer() {
+  return useMutation({
+    mutationFn: async ({
+      code,
+      answerId,
+      accepted,
+    }: {
+      code: string;
+      answerId: number;
+      accepted: boolean;
+    }) => {
+      const session = getSession();
+      const rawPlayerId = session?.playerId;
+      const playerId = parseInt(String(rawPlayerId || ""), 10);
+
+      if (isNaN(playerId) || playerId <= 0) {
+        throw new Error("Invalid or missing player session. Please try joining again.");
+      }
+
+      const url = buildUrl(api.rooms.voteAnswer.path, { code, answerId });
+      const res = await fetch(url, {
+        method: api.rooms.voteAnswer.method,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": String(playerId),
+        },
+        body: JSON.stringify({ accepted }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ message: "Failed to vote" }));
+        throw new Error(error.message || "Failed to vote");
+      }
+
+      return api.rooms.voteAnswer.responses[200].parse(await res.json());
+    },
+    onSuccess: (_, variables) => {
+      libQueryClient.invalidateQueries({
+        queryKey: [api.rooms.get.path, variables.code],
+      });
+    },
+  });
+}

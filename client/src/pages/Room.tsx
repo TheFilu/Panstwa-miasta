@@ -6,6 +6,7 @@ import {
   clearSession,
   useStartGame,
   useSubmitAnswers,
+  useVoteAnswer,
   useUpdateCategories,
   useUpdateSettings,
   queryClient,
@@ -76,7 +77,7 @@ export default function Room() {
     );
   }
 
-  const { room, players, currentRound, myAnswers } = data;
+  const { room, players, currentRound, myAnswers, allAnswers, answerVotes } = data;
   const categories = room.categories || CATEGORIES.map((c) => c.id);
   const me = players.find((p) => p.id === session?.playerId);
   const isHost = me?.isHost;
@@ -87,6 +88,8 @@ export default function Room() {
       players={players}
       currentRound={currentRound}
       myAnswers={myAnswers}
+      allAnswers={allAnswers}
+      answerVotes={answerVotes}
       categories={categories}
       isHost={isHost}
       session={session}
@@ -100,6 +103,8 @@ function RoomContent({
   players,
   currentRound,
   myAnswers,
+  allAnswers,
+  answerVotes,
   categories,
   isHost,
   session,
@@ -109,6 +114,8 @@ function RoomContent({
   players: any[];
   currentRound: any;
   myAnswers: any[] | undefined;
+  allAnswers: any[] | undefined;
+  answerVotes: any[] | undefined;
   categories: string[];
   isHost: boolean | undefined;
   session: any;
@@ -117,6 +124,7 @@ function RoomContent({
   const { toast } = useToast();
   const startGame = useStartGame();
   const submitAnswers = useSubmitAnswers();
+  const voteAnswer = useVoteAnswer();
   const updateCategories = useUpdateCategories();
   const updateSettings = useUpdateSettings();
 
@@ -133,6 +141,36 @@ function RoomContent({
     if (label) return label;
     if (!categoryId) return categoryId;
     return categoryId.charAt(0).toUpperCase() + categoryId.slice(1);
+  };
+
+  const answersByPlayerCategory = new Map<string, any>();
+  (allAnswers || []).forEach((ans) => {
+    answersByPlayerCategory.set(`${ans.playerId}:${ans.category}`, ans);
+  });
+
+  const votesByAnswerId = new Map<number, { accept: number; reject: number; myVote?: boolean }>();
+  (answerVotes || []).forEach((vote) => {
+    const entry = votesByAnswerId.get(vote.answerId) || { accept: 0, reject: 0 };
+    if (vote.accepted) {
+      entry.accept += 1;
+    } else {
+      entry.reject += 1;
+    }
+    if (vote.playerId === session?.playerId) {
+      entry.myVote = vote.accepted;
+    }
+    votesByAnswerId.set(vote.answerId, entry);
+  });
+
+  const myAnswersResolved =
+    myAnswers || allAnswers?.filter((ans) => ans.playerId === session?.playerId);
+
+  const getVoteStats = (answerId: number) =>
+    votesByAnswerId.get(answerId) || { accept: 0, reject: 0 };
+
+  const isAnswerRejected = (answer: any) => {
+    const stats = getVoteStats(answer.id);
+    return answer.communityRejected || stats.reject > players.length / 2;
   };
 
   useEffect(() => {
@@ -487,68 +525,170 @@ function RoomContent({
 
   // 4. ROUND RESULTS (Default view)
   const isRoundOver = currentRound?.status !== "active";
+  const totalPlayers = players.length;
   return (
     <div className="min-h-screen flex flex-col p-4 md:p-8 max-w-4xl mx-auto">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-black">Runda skończona!</h2>
         <p className="text-muted-foreground">Przegląd odpowiedzi...</p>
       </div>
-      <div className="grid md:grid-cols-2 gap-8">
-        <GameCard
-          title="Ranking"
-          icon={<Trophy className="w-5 h-5 text-yellow-500" />}
-        >
-          <div className="space-y-4">
-            {[...players]
-              .sort((a, b) => b.score - a.score)
-              .map((p, i) => (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between p-3 bg-muted/30 rounded-xl"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-muted-foreground w-6">
-                      #{i + 1}
-                    </span>
-                    <Avatar name={p.name} size="sm" />
-                    <span className="font-semibold">{p.name}</span>
-                  </div>
-                  <span className="font-bold">{p.score} pts</span>
-                </div>
-              ))}
-          </div>
+      <div className="space-y-8">
+        <GameCard title="Odpowiedzi graczy" icon={<Users className="w-5 h-5" />}>
+          {!allAnswers?.length ? (
+            <div className="text-muted-foreground">Brak odpowiedzi w tej rundzie.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-[720px] w-full text-sm border-collapse">
+                <thead>
+                  <tr className="text-left text-muted-foreground">
+                    <th className="py-2 pr-4 font-bold">Kategoria</th>
+                    {players.map((player) => (
+                      <th key={player.id} className="py-2 pr-4 font-bold">
+                        {player.name}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {categories.map((catId) => (
+                    <tr key={catId} className="border-t">
+                      <td className="py-3 pr-4 font-semibold">
+                        {formatCategoryLabel(catId)}
+                      </td>
+                      {players.map((player) => {
+                        const ans = answersByPlayerCategory.get(`${player.id}:${catId}`);
+                        if (!ans) {
+                          return (
+                            <td key={player.id} className="py-3 pr-4 text-muted-foreground">
+                              -
+                            </td>
+                          );
+                        }
+
+                        const voteStats = getVoteStats(ans.id);
+                        const rejectedNow = voteStats.reject > totalPlayers / 2;
+                        const rejectedFinal = ans.communityRejected;
+                        const myVote = voteStats.myVote;
+
+                        return (
+                          <td key={player.id} className="py-3 pr-4 align-top">
+                            <div className="flex flex-col gap-2">
+                              <div className="font-semibold">{ans.word}</div>
+                              <div className="text-xs text-muted-foreground">
+                                Głosy: +{voteStats.accept} / -{voteStats.reject}
+                              </div>
+                              {rejectedFinal && (
+                                <div className="text-xs font-bold text-red-500">
+                                  Odrzucone po zamknięciu rundy
+                                </div>
+                              )}
+                              {!rejectedFinal && rejectedNow && (
+                                <div className="text-xs font-bold text-red-500">
+                                  Aktualnie odrzucane
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={myVote === true ? "secondary" : "outline"}
+                                  onClick={() =>
+                                    voteAnswer.mutate({
+                                      code: room.code,
+                                      answerId: ans.id,
+                                      accepted: true,
+                                    })
+                                  }
+                                  disabled={voteAnswer.isPending}
+                                >
+                                  <Check className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={myVote === false ? "destructive" : "outline"}
+                                  onClick={() =>
+                                    voteAnswer.mutate({
+                                      code: room.code,
+                                      answerId: ans.id,
+                                      accepted: false,
+                                    })
+                                  }
+                                  disabled={voteAnswer.isPending}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </GameCard>
 
-        <GameCard title="Twoje odpowiedzi">
-          <div className="space-y-4">
-            {categories.map((catId) => {
-              const ans = myAnswers?.find((a) => a.category === catId);
-              return (
-                <div
-                  key={catId}
-                  className="flex items-center justify-between p-3 border rounded-xl"
-                >
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-muted-foreground uppercase">
-                      {formatCategoryLabel(catId)}
-                    </span>
-                    <span className="font-medium text-lg">
-                      {ans?.word || "-"}
-                    </span>
-                  </div>
-                  {ans?.isValid === true && (
-                    <div className="text-green-600 font-bold">
-                      + {ans.points}
+        <div className="grid md:grid-cols-2 gap-8">
+          <GameCard
+            title="Ranking"
+            icon={<Trophy className="w-5 h-5 text-yellow-500" />}
+          >
+            <div className="space-y-4">
+              {[...players]
+                .sort((a, b) => b.score - a.score)
+                .map((p, i) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between p-3 bg-muted/30 rounded-xl"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-muted-foreground w-6">
+                        #{i + 1}
+                      </span>
+                      <Avatar name={p.name} size="sm" />
+                      <span className="font-semibold">{p.name}</span>
                     </div>
-                  )}
-                  {ans?.isValid === false && (
-                    <div className="text-red-500 font-bold">0</div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </GameCard>
+                    <span className="font-bold">{p.score} pts</span>
+                  </div>
+                ))}
+            </div>
+          </GameCard>
+
+          <GameCard title="Twoje odpowiedzi">
+            <div className="space-y-4">
+              {categories.map((catId) => {
+                const ans = myAnswersResolved?.find((a) => a.category === catId);
+                const rejected = ans ? isAnswerRejected(ans) : false;
+                return (
+                  <div
+                    key={catId}
+                    className="flex items-center justify-between p-3 border rounded-xl"
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-muted-foreground uppercase">
+                        {formatCategoryLabel(catId)}
+                      </span>
+                      <span className="font-medium text-lg">
+                        {ans?.word || "-"}
+                      </span>
+                    </div>
+                    {ans?.isValid === true && (
+                      <div className={rejected ? "text-red-500 font-bold" : "text-green-600 font-bold"}>
+                        {rejected ? 0 : `+ ${ans.points}`}
+                      </div>
+                    )}
+                    {ans?.isValid === false && (
+                      <div className="text-red-500 font-bold">0</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </GameCard>
+        </div>
       </div>
 
       {isHost && isRoundOver && (

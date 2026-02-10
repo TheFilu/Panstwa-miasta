@@ -4,17 +4,19 @@ import {
   players,
   rounds,
   answers,
+  answerVotes,
   type Room,
   type Player,
   type Round,
   type Answer,
+  type AnswerVote,
   type CreateRoomRequest,
   type JoinRoomRequest,
   type InsertRoom,
   type InsertPlayer,
   type InsertAnswer,
 } from "@shared/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
 export interface IStorage {
@@ -62,6 +64,15 @@ export interface IStorage {
     points: number,
     reason?: string,
   ): Promise<Answer>;
+  getAnswerById(id: number): Promise<Answer | undefined>;
+  getAnswerVotesForRound(roundId: number): Promise<AnswerVote[]>;
+  getAnswerVotesByAnswerId(answerId: number): Promise<AnswerVote[]>;
+  upsertAnswerVote(
+    answerId: number,
+    playerId: number,
+    accepted: boolean,
+  ): Promise<AnswerVote>;
+  setCommunityRejected(id: number, rejected: boolean): Promise<Answer>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -341,6 +352,65 @@ export class DatabaseStorage implements IStorage {
       .returning();
     if (!result || result.length === 0) {
       throw new Error("Failed to update answer validation - answer not found");
+    }
+    return result[0];
+  }
+
+  async getAnswerById(id: number): Promise<Answer | undefined> {
+    const result = await db.select().from(answers).where(eq(answers.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getAnswerVotesForRound(roundId: number): Promise<AnswerVote[]> {
+    const roundAnswers = await db
+      .select({ id: answers.id })
+      .from(answers)
+      .where(eq(answers.roundId, roundId));
+
+    const answerIds = roundAnswers.map((row) => row.id);
+    if (answerIds.length === 0) return [];
+
+    return db.select().from(answerVotes).where(inArray(answerVotes.answerId, answerIds));
+  }
+
+  async getAnswerVotesByAnswerId(answerId: number): Promise<AnswerVote[]> {
+    return db.select().from(answerVotes).where(eq(answerVotes.answerId, answerId));
+  }
+
+  async upsertAnswerVote(
+    answerId: number,
+    playerId: number,
+    accepted: boolean,
+  ): Promise<AnswerVote> {
+    const existing = await db
+      .select()
+      .from(answerVotes)
+      .where(and(eq(answerVotes.answerId, answerId), eq(answerVotes.playerId, playerId)));
+
+    if (existing.length > 0) {
+      const result = await db
+        .update(answerVotes)
+        .set({ accepted, createdAt: new Date() })
+        .where(eq(answerVotes.id, existing[0].id))
+        .returning();
+      return result[0];
+    }
+
+    const result = await db
+      .insert(answerVotes)
+      .values({ answerId, playerId, accepted })
+      .returning();
+    return result[0];
+  }
+
+  async setCommunityRejected(id: number, rejected: boolean): Promise<Answer> {
+    const result = await db
+      .update(answers)
+      .set({ communityRejected: rejected })
+      .where(eq(answers.id, id))
+      .returning();
+    if (!result || result.length === 0) {
+      throw new Error("Failed to update community rejection - answer not found");
     }
     return result[0];
   }

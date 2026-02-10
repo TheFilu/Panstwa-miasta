@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertRoomSchema, insertPlayerSchema, rooms, players, rounds, answers } from './schema';
+import { insertRoomSchema, insertPlayerSchema, rooms, players, rounds, answers, answerVotes } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -64,6 +64,7 @@ export const api = {
           currentRound: z.custom<typeof rounds.$inferSelect>().optional(),
           myAnswers: z.array(z.custom<typeof answers.$inferSelect>()).optional(),
           allAnswers: z.array(z.custom<typeof answers.$inferSelect>()).optional(), // For results phase
+          answerVotes: z.array(z.custom<typeof answerVotes.$inferSelect>()).optional(),
         }),
         404: errorSchemas.notFound,
       },
@@ -102,6 +103,19 @@ export const api = {
       responses: {
         200: z.object({ success: z.boolean() }),
         403: errorSchemas.validation,
+      },
+    },
+    voteAnswer: {
+      method: 'POST' as const,
+      path: '/api/rooms/:code/answers/:answerId/vote',
+      input: z.object({
+        accepted: z.boolean(),
+      }),
+      responses: {
+        200: z.object({ success: z.boolean(), rejected: z.boolean() }),
+        400: errorSchemas.validation,
+        403: errorSchemas.validation,
+        404: errorSchemas.notFound,
       },
     },
     updateCategories: {

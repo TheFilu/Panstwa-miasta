@@ -50,6 +50,15 @@ export const answers = pgTable("answers", {
   isValid: boolean("is_valid"), // null = pending, true/false
   points: integer("points").default(0),
   validationReason: text("validation_reason"),
+  communityRejected: boolean("community_rejected").default(false),
+});
+
+export const answerVotes = pgTable("answer_votes", {
+  id: serial("id").primaryKey(),
+  answerId: integer("answer_id").notNull(),
+  playerId: integer("player_id").notNull(),
+  accepted: boolean("accepted").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // === RELATIONS ===
@@ -80,6 +89,17 @@ export const answersRelations = relations(answers, ({ one }) => ({
   }),
 }));
 
+export const answerVotesRelations = relations(answerVotes, ({ one }) => ({
+  answer: one(answers, {
+    fields: [answerVotes.answerId],
+    references: [answers.id],
+  }),
+  player: one(players, {
+    fields: [answerVotes.playerId],
+    references: [players.id],
+  }),
+}));
+
 // === ZOD SCHEMAS ===
 
 export const insertRoomSchema = createInsertSchema(rooms).omit({ 
@@ -102,7 +122,8 @@ export const insertAnswerSchema = createInsertSchema(answers).omit({
   id: true,
   isValid: true,
   points: true,
-  validationReason: true
+  validationReason: true,
+  communityRejected: true,
 });
 
 // === TYPES ===
@@ -111,6 +132,7 @@ export type Room = typeof rooms.$inferSelect;
 export type Player = typeof players.$inferSelect;
 export type Round = typeof rounds.$inferSelect;
 export type Answer = typeof answers.$inferSelect;
+export type AnswerVote = typeof answerVotes.$inferSelect;
 
 export type InsertRoom = typeof rooms.$inferInsert;
 export type InsertPlayer = typeof players.$inferInsert;

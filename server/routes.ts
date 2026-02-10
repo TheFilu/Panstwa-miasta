@@ -153,11 +153,13 @@ export async function registerRoutes(
     const currentRound = await storage.getCurrentRound(room.id);
 
     let allAnswers = undefined;
+    let answerVotes = undefined;
     if (currentRound?.status === "completed") {
       allAnswers = await storage.getAnswers(currentRound.id);
+      answerVotes = await storage.getAnswerVotesForRound(currentRound.id);
     }
 
-    res.json({ room, players: playersList, currentRound, allAnswers });
+    res.json({ room, players: playersList, currentRound, allAnswers, answerVotes });
   });
 
   app.post(api.rooms.start.path, async (req, res) => {
@@ -316,6 +318,7 @@ export async function registerRoutes(
     const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
     const room = await storage.getRoom(code);
     if (room && room.status !== "finished") {
+      await finalizeCommunityVotes(room.id);
       await startNewRound(room.id);
       res.json({ success: true });
     } else {
@@ -323,10 +326,102 @@ export async function registerRoutes(
     }
   });
 
+  app.post(api.rooms.voteAnswer.path, async (req, res) => {
+    try {
+      const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
+      const answerId = parseInt(String(req.params.answerId), 10);
+      if (isNaN(answerId) || answerId <= 0) {
+        return res.status(400).json({ message: "Nieprawidłowy identyfikator odpowiedzi" });
+      }
+
+      const { accepted } = api.rooms.voteAnswer.input.parse(req.body);
+
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return res.status(401).json({ message: "Brak sesji gracza" });
+      }
+
+      const playerId = parseInt(String(authHeader), 10);
+      if (isNaN(playerId) || playerId <= 0) {
+        return res.status(401).json({ message: "Nieprawidłowy identyfikator sesji" });
+      }
+
+      const room = await storage.getRoom(code);
+      if (!room) return res.status(404).json({ message: "Pokój nie znaleziony" });
+
+      const player = await storage.getPlayer(playerId);
+      if (!player || player.roomId !== room.id) {
+        return res.status(403).json({ message: "Brak uprawnień" });
+      }
+
+      const answer = await storage.getAnswerById(answerId);
+      if (!answer) return res.status(404).json({ message: "Odpowiedź nie znaleziona" });
+
+      const round = await db.select().from(rounds).where(eq(rounds.id, answer.roundId)).limit(1);
+      if (!round.length || round[0].roomId !== room.id) {
+        return res.status(403).json({ message: "Brak uprawnień" });
+      }
+
+      if (round[0].status !== "completed") {
+        return res.status(400).json({ message: "Runda nie jest zakończona" });
+      }
+
+      const currentRound = await storage.getCurrentRound(room.id);
+      if (!currentRound || currentRound.id !== round[0].id || currentRound.status !== "completed") {
+        return res.status(400).json({ message: "Glosowanie dla tej rundy jest zamkniete" });
+      }
+
+      await storage.upsertAnswerVote(answerId, playerId, accepted);
+
+      const votes = await storage.getAnswerVotesByAnswerId(answerId);
+      const playersInRoom = await storage.getPlayers(room.id);
+      const rejectCount = votes.filter((vote) => !vote.accepted).length;
+      const shouldReject = rejectCount > playersInRoom.length / 2;
+
+      res.json({ success: true, rejected: shouldReject || answer.communityRejected });
+    } catch (err) {
+      console.error("[Game] Vote answer failed:", err);
+      res.status(400).json({ message: "Błąd głosowania" });
+    }
+  });
+
   return httpServer;
 }
 
 // --- FUNKCJE POMOCNICZE (validateRound i startNewRound zostają bez zmian z Twojego poprzedniego kodu) ---
+
+async function finalizeCommunityVotes(roomId: number) {
+  const currentRound = await storage.getCurrentRound(roomId);
+  if (!currentRound || currentRound.status !== "completed") return;
+
+  const answers = await storage.getAnswers(currentRound.id);
+  if (answers.length === 0) return;
+
+  const votes = await storage.getAnswerVotesForRound(currentRound.id);
+  const playersInRoom = await storage.getPlayers(roomId);
+  const totalPlayers = playersInRoom.length;
+
+  const rejectCounts = new Map<number, number>();
+  for (const vote of votes) {
+    if (!vote.accepted) {
+      rejectCounts.set(vote.answerId, (rejectCounts.get(vote.answerId) || 0) + 1);
+    }
+  }
+
+  for (const answer of answers) {
+    const rejectCount = rejectCounts.get(answer.id) || 0;
+    const shouldReject = rejectCount > totalPlayers / 2;
+
+    if (shouldReject !== answer.communityRejected) {
+      await storage.setCommunityRejected(answer.id, shouldReject);
+      const points = answer.points || 0;
+      if (points > 0) {
+        const delta = shouldReject ? -points : points;
+        await storage.updatePlayerScore(answer.playerId, delta);
+      }
+    }
+  }
+}
 
 async function startNewRound(roomId: number) {
   const room = await storage.getRoomById(roomId);
