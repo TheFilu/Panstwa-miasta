@@ -152,6 +152,31 @@ export function useStartGame() {
   });
 }
 
+export function useNextRound() {
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const url = buildUrl(api.rooms.nextRound.path, { code });
+      const res = await fetch(url, {
+        method: api.rooms.nextRound.method,
+      });
+
+      if (!res.ok) {
+        const error = await res
+          .json()
+          .catch(() => ({ message: "Failed to start next round" }));
+        throw new Error(error.message);
+      }
+
+      return api.rooms.nextRound.responses[200].parse(await res.json());
+    },
+    onSuccess: (_, code) => {
+      libQueryClient.invalidateQueries({
+        queryKey: [api.rooms.get.path, code],
+      });
+    },
+  });
+}
+
 export function useSubmitAnswers() {
   return useMutation({
     mutationFn: async ({

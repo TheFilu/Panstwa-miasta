@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRoute, useLocation } from "wouter";
 import {
   useRoom,
   getSession,
   clearSession,
   useStartGame,
+  useNextRound,
   useSubmitAnswers,
   useVoteAnswer,
   useUpdateCategories,
@@ -123,6 +124,7 @@ function RoomContent({
 }) {
   const { toast } = useToast();
   const startGame = useStartGame();
+  const nextRound = useNextRound();
   const submitAnswers = useSubmitAnswers();
   const voteAnswer = useVoteAnswer();
   const updateCategories = useUpdateCategories();
@@ -136,6 +138,7 @@ function RoomContent({
   const [localTimer, setLocalTimer] = useState<number | null>(
     room.timerDuration,
   );
+  const autoSubmitTriggered = useRef(false);
   const formatCategoryLabel = (categoryId: string) => {
     const label = CATEGORIES.find((c) => c.id === categoryId)?.label;
     if (label) return label;
@@ -186,6 +189,7 @@ function RoomContent({
       setInputs({});
       setHasSubmitted(false);
       setTimeLeft(null);
+      autoSubmitTriggered.current = false;
     }
   }, [currentRound?.id, currentRound?.status]);
 
@@ -213,6 +217,27 @@ function RoomContent({
     currentRound?.status,
   ]);
 
+  useEffect(() => {
+    if (
+      timeLeft === 0 &&
+      currentRound?.status === "active" &&
+      !hasSubmitted &&
+      !submitAnswers.isPending &&
+      !autoSubmitTriggered.current
+    ) {
+      autoSubmitTriggered.current = true;
+      submitAnswers.mutate({ code: room.code, answers: inputs });
+      setHasSubmitted(true);
+    }
+  }, [
+    timeLeft,
+    currentRound?.status,
+    hasSubmitted,
+    submitAnswers,
+    room.code,
+    inputs,
+  ]);
+
   const handleRoundsChange = (val: number) => {
     setLocalRounds(val);
     updateSettings.mutate({ code: room.code, settings: { totalRounds: val } });
@@ -233,6 +258,7 @@ function RoomContent({
   };
 
   const handleStart = () => startGame.mutate(room.code);
+  const handleNextRound = () => nextRound.mutate(room.code);
   const handleAddCategory = () => {
     if (!newCategory.trim()) return;
     const updated = [...categories, newCategory.trim()];
@@ -696,8 +722,8 @@ function RoomContent({
           <Button
             size="lg"
             className="shadow-xl animate-bounce"
-            onClick={handleStart}
-            disabled={startGame.isPending}
+            onClick={handleNextRound}
+            disabled={nextRound.isPending}
           >
             Następna runda <ArrowRight className="ml-2 w-5 h-5" />
           </Button>
